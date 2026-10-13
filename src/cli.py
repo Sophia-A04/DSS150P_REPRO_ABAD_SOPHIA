@@ -26,10 +26,15 @@ from src.transform import (
     build_staging,
     transform_all,
 )
+from src.validate import (
+    validate_all,
+    validate_data_quality,
+    validate_database,
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
-    """Build the command-line parser."""
+    """Build command-line interface."""
     parser = argparse.ArgumentParser(
         description="DSS150P reproducible stroke pipeline"
     )
@@ -39,94 +44,39 @@ def build_parser() -> argparse.ArgumentParser:
         required=True,
     )
 
-    # Source and ingestion commands
-    subparsers.add_parser(
-        "verify-source",
-        help="Verify source checksum and dimensions.",
-    )
-
-    subparsers.add_parser(
-        "ingest-full",
-        help="Perform rerun-safe full ingestion.",
-    )
+    subparsers.add_parser("verify-source")
+    subparsers.add_parser("ingest-full")
 
     incremental = subparsers.add_parser(
-        "ingest-incremental",
-        help="Perform resumable incremental ingestion.",
+        "ingest-incremental"
     )
 
     incremental.add_argument(
         "--max-batches",
         type=int,
         default=1,
-        help="Maximum number of new batches to process.",
     )
 
     incremental.add_argument(
         "--all",
         action="store_true",
-        help="Process all remaining batches.",
     )
 
-    # Transformation commands
-    subparsers.add_parser(
-        "transform-staging",
-        help="Create deterministic cleaned staging data.",
-    )
+    subparsers.add_parser("transform-staging")
+    subparsers.add_parser("transform-curated")
+    subparsers.add_parser("transform-all")
 
-    subparsers.add_parser(
-        "transform-curated",
-        help="Create feature-engineered curated data.",
-    )
+    subparsers.add_parser("train")
+    subparsers.add_parser("evaluate")
 
-    subparsers.add_parser(
-        "transform-all",
-        help="Run staging and curated transformations.",
-    )
-
-    # Model commands
-    subparsers.add_parser(
-        "train",
-        help="Train the reproducible baseline model.",
-    )
-
-    subparsers.add_parser(
-        "evaluate",
-        help="Evaluate model reproducibility.",
-    )
-
-    # Storage commands
-    subparsers.add_parser(
-        "storage-export",
-        help="Export curated data to CSV, JSONL, and Parquet.",
-    )
-
-    subparsers.add_parser(
-        "storage-verify",
-        help="Verify logical equivalence across storage formats.",
-    )
-
-    subparsers.add_parser(
-        "create-partitions",
-        help="Create deterministic age-risk partitions.",
-    )
-
-    subparsers.add_parser(
-        "load-postgres",
-        help="Load curated data into PostgreSQL using rerun-safe UPSERT.",
-    )
-
-    subparsers.add_parser(
-        "storage-all",
-        help=(
-            "Export storage formats, verify equivalence, "
-            "create partitions, and load PostgreSQL."
-        ),
-    )
+    subparsers.add_parser("storage-export")
+    subparsers.add_parser("storage-verify")
+    subparsers.add_parser("create-partitions")
+    subparsers.add_parser("load-postgres")
+    subparsers.add_parser("storage-all")
 
     partition_parser = subparsers.add_parser(
-        "load-partition",
-        help="Load one selected partition independently.",
+        "load-partition"
     )
 
     partition_parser.add_argument(
@@ -134,14 +84,25 @@ def build_parser() -> argparse.ArgumentParser:
         type=int,
         required=True,
         choices=[0, 1],
-        help="Age-risk partition to load.",
+    )
+
+    subparsers.add_parser(
+        "validate-data"
+    )
+
+    subparsers.add_parser(
+        "validate-database"
+    )
+
+    subparsers.add_parser(
+        "validate-all"
     )
 
     return parser
 
 
 def main() -> int:
-    """Execute a CLI command."""
+    """Execute selected pipeline command."""
     parser = build_parser()
     args = parser.parse_args()
 
@@ -193,8 +154,19 @@ def main() -> int:
         elif args.command == "storage-all":
             result = storage_all()
 
+        elif args.command == "validate-data":
+            result = validate_data_quality()
+
+        elif args.command == "validate-database":
+            result = validate_database()
+
+        elif args.command == "validate-all":
+            result = validate_all()
+
         else:
-            parser.error(f"Unknown command: {args.command}")
+            parser.error(
+                f"Unknown command: {args.command}"
+            )
             return 2
 
         print(
