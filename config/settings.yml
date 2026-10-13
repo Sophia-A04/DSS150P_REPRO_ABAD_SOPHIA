@@ -1,0 +1,17 @@
+project:
+  name: DSS150P Reproducible Stroke Risk Prediction Pipeline
+  random_seed: 42
+
+paths:
+  source_file: data/source/Stroke_Prediction_Dataset.csv
+  source_manifest: metadata/source_manifest.yml
+  raw_dir: data/raw
+  checkpoint_file: metadata/ingestion_checkpoint.json
+  audit_log: metadata/ingestion_audit.csv
+
+ingestion:
+  full_dirname: full
+  incremental_dirname: incremental
+  full_filename: Stroke_Prediction_Dataset.csv
+  batch_size: 500
+  encoding: utf-8

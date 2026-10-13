@@ -1,0 +1,89 @@
+{
+  "batch_size": 500,
+  "completed_batches": {
+    "1": {
+      "file": "data/raw/incremental/batch_0001.csv",
+      "rows": 500,
+      "sequence_end": 500,
+      "sequence_start": 1,
+      "sha256": "c8175788f7e522ac7c315dcf57ad0c7afdd234b292e2896828901e879f21bd0b"
+    },
+    "10": {
+      "file": "data/raw/incremental/batch_0010.csv",
+      "rows": 500,
+      "sequence_end": 5000,
+      "sequence_start": 4501,
+      "sha256": "24a01e9d52b7ac2850be380afe86690af595a2545cc2b66bac972c135fed6cb9"
+    },
+    "11": {
+      "file": "data/raw/incremental/batch_0011.csv",
+      "rows": 110,
+      "sequence_end": 5110,
+      "sequence_start": 5001,
+      "sha256": "70a354b847480455c556e1029c5a5a4c3090d50eb79e56f21dde495ea318ed32"
+    },
+    "2": {
+      "file": "data/raw/incremental/batch_0002.csv",
+      "rows": 500,
+      "sequence_end": 1000,
+      "sequence_start": 501,
+      "sha256": "70b54ef69b8f9dba1e39ced239c61499e0422d0319ccafbf7ea709a81ffeeb14"
+    },
+    "3": {
+      "file": "data/raw/incremental/batch_0003.csv",
+      "rows": 500,
+      "sequence_end": 1500,
+      "sequence_start": 1001,
+      "sha256": "ba8fc74a757853fb7afa06879ae48456d4623aa518a22be91d898e2b69902202"
+    },
+    "4": {
+      "file": "data/raw/incremental/batch_0004.csv",
+      "rows": 500,
+      "sequence_end": 2000,
+      "sequence_start": 1501,
+      "sha256": "92bc58ee45143e1034d8205e429c07c1ff2d5ee8d18e2f15eb5d63dde441132c"
+    },
+    "5": {
+      "file": "data/raw/incremental/batch_0005.csv",
+      "rows": 500,
+      "sequence_end": 2500,
+      "sequence_start": 2001,
+      "sha256": "4cc47528f4c02748c6163aefa4a0706f7473ca9afff54fb4e866cb54e8b2a3fb"
+    },
+    "6": {
+      "file": "data/raw/incremental/batch_0006.csv",
+      "rows": 500,
+      "sequence_end": 3000,
+      "sequence_start": 2501,
+      "sha256": "076b6409c09187c84f2212758268a2023801d4c28913f6d65e06c6eb30caf9e8"
+    },
+    "7": {
+      "file": "data/raw/incremental/batch_0007.csv",
+      "rows": 500,
+      "sequence_end": 3500,
+      "sequence_start": 3001,
+      "sha256": "92002147ea242d8b517365a6bf8c0ddefd0129d5b3068db7a1b25baea8958b8b"
+    },
+    "8": {
+      "file": "data/raw/incremental/batch_0008.csv",
+      "rows": 500,
+      "sequence_end": 4000,
+      "sequence_start": 3501,
+      "sha256": "8bd1202a76ee8b271c0e139cf4aeac31c9fcc8481d3eff1ae961cd24852945e6"
+    },
+    "9": {
+      "file": "data/raw/incremental/batch_0009.csv",
+      "rows": 500,
+      "sequence_end": 4500,
+      "sequence_start": 4001,
+      "sha256": "686d505ecfb778128697b80b5c5a70b80581d31f3bcc20cf3d4c8d7767685dea"
+    }
+  },
+  "laboratory_simulation": true,
+  "last_completed_batch": 11,
+  "source_sha256": "144ea5366832bb5432645c0e49fbb951aadf4ee1e75e73d2e15d3dc0841525bd",
+  "strategy": "immutable_source_row_sequence",
+  "total_batches": 11,
+  "total_rows": 5110,
+  "version": 1
+}
