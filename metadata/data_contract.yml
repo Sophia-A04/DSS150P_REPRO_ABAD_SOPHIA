@@ -1,4 +1,3 @@
-cat > metadata/data_contract.yml <<'EOF'
 dataset:
   name: Stroke Prediction Dataset
   version: "1.0"
@@ -103,15 +102,21 @@ quality_rules:
   - exact duplicate source rows are not expected.
   - source records must not be silently modified.
 
+violation_policy:
+  source_schema_error: fail
+  unexpected_column: fail
+  missing_required_column: fail
+  invalid_source_key: fail
+  downstream_invalid_record: quarantine
+
 modeling_scope:
   note: >
     Eligibility filtering and model-specific transformations are intentionally
-    not enforced in the source contract. They will be implemented
-    deterministically in downstream staging and curated transformations.
+    not enforced in the source contract. They are implemented deterministically
+    in downstream staging and curated transformations.
 
 schema_evolution:
   policy: fail_on_unexpected_schema
   description: >
     Unexpected missing columns, additional columns, or incompatible source
-    types must cause validation to fail until the change is reviewed.
-EOF
+    types cause validation to fail until the source change is reviewed.

@@ -1,4 +1,3 @@
-cat > metadata/source_profile.md <<'EOF'
 # Source Dataset Profile
 
 ## Dataset
@@ -33,62 +32,39 @@ cat > metadata/source_profile.md <<'EOF'
 | `smoking_status` | string | 0 | never smoked, Unknown, formerly smoked, smokes |
 | `stroke` | integer | 0 | 0, 1 |
 
-## Categorical Distribution Notes
-
-### Gender
-
-- Female: 2,994
-- Male: 2,115
-- Other: 1
-
-### Work Type
-
-- Private: 2,925
-- Self-employed: 819
-- children: 687
-- Govt_job: 657
-- Never_worked: 22
-
-### Residence Type
-
-- Urban: 2,596
-- Rural: 2,514
-
-### Smoking Status
-
-- never smoked: 1,892
-- Unknown: 1,544
-- formerly smoked: 885
-- smokes: 789
-
 ## Target Distribution
 
-Target column: `stroke`
+- No stroke (`0`): 4,861 records, approximately 95.13%
+- Stroke (`1`): 249 records, approximately 4.87%
 
-- No stroke (`0`): 4,861 records — approximately 95.13%
-- Stroke (`1`): 249 records — approximately 4.87%
+The source is strongly class-imbalanced.
 
-The source dataset is therefore strongly class-imbalanced.
+## Missing Values
 
-## Missing-Value Findings
-
-The only source column with missing values is `bmi`:
+The only source column with missing values is `bmi`.
 
 - Missing BMI values: 201
 - Non-missing BMI values: 4,909
 
-Missing BMI values are preserved in the immutable source layer. Any handling of these records must occur in staging or later pipeline stages and must be deterministic and documented.
+The immutable source is not repaired in place. Missing-value handling occurs in downstream staging.
 
 ## Source-Layer Policy
 
-The file under `data/source/` is treated as immutable source truth.
-
-The pipeline must not:
+The pipeline does not:
 
 - edit the source CSV in place;
 - silently repair source values;
 - overwrite missing values in the source layer; or
-- modify source records to satisfy model requirements.
+- alter source records to satisfy model requirements.
 
-Cleaning, eligibility filtering, feature engineering, encoding, and model preparation occur in downstream layers.
-EOF
+Cleaning, eligibility filtering, feature engineering, and model preparation occur downstream.
+
+## Provenance, Availability, and Privacy
+
+Public source repository:
+
+`https://huggingface.co/datasets/Nnaodeh/Stroke_Prediction_Dataset`
+
+The exact original retrieval date from the previous group project was not recorded. For Lab Activity #4, source identity is controlled through the committed manifest and SHA-256 checksum.
+
+No credentials are required to access the referenced public source. If a future version contains sensitive or regulated information, the raw dataset should not be committed to a public repository; the manifest should instead reference an approved controlled location with appropriate access controls.
