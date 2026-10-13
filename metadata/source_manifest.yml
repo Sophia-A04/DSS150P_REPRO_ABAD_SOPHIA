@@ -1,0 +1,32 @@
+cat > metadata/source_manifest.yml <<'EOF'
+dataset:
+  name: Stroke Prediction Dataset
+  source_platform: Hugging Face
+  source_repository: Nnaodeh/Stroke_Prediction_Dataset
+  source_url: "https://huggingface.co/datasets/Nnaodeh/Stroke_Prediction_Dataset"
+
+source_file:
+  original_filename: "Stroke_Prediction_Dataset.csv"
+  repository_path: "data/source/Stroke_Prediction_Dataset.csv"
+  format: csv
+  size_bytes: 327451
+  rows: 5110
+  columns: 12
+
+integrity:
+  checksum_algorithm: sha256
+  sha256: "144ea5366832bb5432645c0e49fbb951aadf4ee1e75e73d2e15d3dc0841525bd"
+  verified_on: "2026-10-13"
+  immutable_source: true
+
+provenance:
+  original_project: "DSS141P Predictive Analytics Final Project"
+  exact_original_retrieval_date: null
+  retrieval_note: "The source file was retained from the original predictive analytics project. The exact original download date was not recorded."
+  lab4_role: "Canonical immutable source dataset for reproducibility."
+
+rules:
+  - "Do not modify this source file in place."
+  - "All cleaning and transformation must occur downstream."
+  - "Verify the SHA-256 checksum before ingestion."
+EOF

@@ -1,0 +1,117 @@
+cat > metadata/data_contract.yml <<'EOF'
+dataset:
+  name: Stroke Prediction Dataset
+  version: "1.0"
+  layer: source
+  format: csv
+  primary_key:
+    - id
+  target_column: stroke
+
+schema:
+  id:
+    type: integer
+    nullable: false
+    unique: true
+
+  gender:
+    type: string
+    nullable: false
+    allowed_values:
+      - Female
+      - Male
+      - Other
+
+  age:
+    type: float
+    nullable: false
+    minimum: 0
+    maximum: 120
+
+  hypertension:
+    type: integer
+    nullable: false
+    allowed_values:
+      - 0
+      - 1
+
+  heart_disease:
+    type: integer
+    nullable: false
+    allowed_values:
+      - 0
+      - 1
+
+  ever_married:
+    type: string
+    nullable: false
+    allowed_values:
+      - "Yes"
+      - "No"
+
+  work_type:
+    type: string
+    nullable: false
+    allowed_values:
+      - Private
+      - Self-employed
+      - children
+      - Govt_job
+      - Never_worked
+
+  Residence_type:
+    type: string
+    nullable: false
+    allowed_values:
+      - Urban
+      - Rural
+
+  avg_glucose_level:
+    type: float
+    nullable: false
+    minimum: 0
+
+  bmi:
+    type: float
+    nullable: true
+    minimum: 0
+
+  smoking_status:
+    type: string
+    nullable: false
+    allowed_values:
+      - never smoked
+      - Unknown
+      - formerly smoked
+      - smokes
+
+  stroke:
+    type: integer
+    nullable: false
+    allowed_values:
+      - 0
+      - 1
+
+quality_rules:
+  - id must be unique and non-null.
+  - stroke must contain only 0 or 1.
+  - hypertension must contain only 0 or 1.
+  - heart_disease must contain only 0 or 1.
+  - age must be non-negative.
+  - avg_glucose_level must be non-negative.
+  - bmi may be null in the source dataset.
+  - exact duplicate source rows are not expected.
+  - source records must not be silently modified.
+
+modeling_scope:
+  note: >
+    Eligibility filtering and model-specific transformations are intentionally
+    not enforced in the source contract. They will be implemented
+    deterministically in downstream staging and curated transformations.
+
+schema_evolution:
+  policy: fail_on_unexpected_schema
+  description: >
+    Unexpected missing columns, additional columns, or incompatible source
+    types must cause validation to fail until the change is reviewed.
+EOF
