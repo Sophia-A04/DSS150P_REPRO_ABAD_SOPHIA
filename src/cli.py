@@ -11,6 +11,11 @@ from src.ingest import (
     ingest_incremental,
     verify_source_integrity,
 )
+from src.transform import (
+    build_curated,
+    build_staging,
+    transform_all,
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -41,6 +46,10 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
     )
 
+    subparsers.add_parser("transform-staging")
+    subparsers.add_parser("transform-curated")
+    subparsers.add_parser("transform-all")
+
     return parser
 
 
@@ -60,6 +69,15 @@ def main() -> int:
                 max_batches=args.max_batches,
                 ingest_all=args.all,
             )
+
+        elif args.command == "transform-staging":
+            result = build_staging()
+
+        elif args.command == "transform-curated":
+            result = build_curated()
+
+        elif args.command == "transform-all":
+            result = transform_all()
 
         else:
             parser.error("Unknown command.")

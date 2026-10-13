@@ -5,9 +5,14 @@ project:
 paths:
   source_file: data/source/Stroke_Prediction_Dataset.csv
   source_manifest: metadata/source_manifest.yml
+
   raw_dir: data/raw
   checkpoint_file: metadata/ingestion_checkpoint.json
   audit_log: metadata/ingestion_audit.csv
+
+  staging_file: data/staging/stroke_cleaned.csv
+  curated_file: data/curated/stroke_model_ready.csv
+  quarantine_file: data/quarantine/rejected_records.csv
 
 ingestion:
   full_dirname: full
@@ -15,3 +20,8 @@ ingestion:
   full_filename: Stroke_Prediction_Dataset.csv
   batch_size: 500
   encoding: utf-8
+
+transformation:
+  minimum_age: 35
+  maximum_age: 90
+  expected_staging_rows: 3265
