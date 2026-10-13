@@ -12,6 +12,14 @@ from src.ingest import (
     ingest_incremental,
     verify_source_integrity,
 )
+from src.storage import (
+    create_partitions,
+    export_storage_formats,
+    load_partition,
+    load_postgres,
+    storage_all,
+    verify_storage_equivalence,
+)
 from src.train import train_model
 from src.transform import (
     build_curated,
@@ -21,6 +29,7 @@ from src.transform import (
 
 
 def build_parser() -> argparse.ArgumentParser:
+    """Build the command-line parser."""
     parser = argparse.ArgumentParser(
         description="DSS150P reproducible stroke pipeline"
     )
@@ -30,34 +39,109 @@ def build_parser() -> argparse.ArgumentParser:
         required=True,
     )
 
-    subparsers.add_parser("verify-source")
-    subparsers.add_parser("ingest-full")
+    # Source and ingestion commands
+    subparsers.add_parser(
+        "verify-source",
+        help="Verify source checksum and dimensions.",
+    )
+
+    subparsers.add_parser(
+        "ingest-full",
+        help="Perform rerun-safe full ingestion.",
+    )
 
     incremental = subparsers.add_parser(
-        "ingest-incremental"
+        "ingest-incremental",
+        help="Perform resumable incremental ingestion.",
     )
 
     incremental.add_argument(
         "--max-batches",
         type=int,
         default=1,
+        help="Maximum number of new batches to process.",
     )
 
     incremental.add_argument(
         "--all",
         action="store_true",
+        help="Process all remaining batches.",
     )
 
-    subparsers.add_parser("transform-staging")
-    subparsers.add_parser("transform-curated")
-    subparsers.add_parser("transform-all")
-    subparsers.add_parser("train")
-    subparsers.add_parser("evaluate")
+    # Transformation commands
+    subparsers.add_parser(
+        "transform-staging",
+        help="Create deterministic cleaned staging data.",
+    )
+
+    subparsers.add_parser(
+        "transform-curated",
+        help="Create feature-engineered curated data.",
+    )
+
+    subparsers.add_parser(
+        "transform-all",
+        help="Run staging and curated transformations.",
+    )
+
+    # Model commands
+    subparsers.add_parser(
+        "train",
+        help="Train the reproducible baseline model.",
+    )
+
+    subparsers.add_parser(
+        "evaluate",
+        help="Evaluate model reproducibility.",
+    )
+
+    # Storage commands
+    subparsers.add_parser(
+        "storage-export",
+        help="Export curated data to CSV, JSONL, and Parquet.",
+    )
+
+    subparsers.add_parser(
+        "storage-verify",
+        help="Verify logical equivalence across storage formats.",
+    )
+
+    subparsers.add_parser(
+        "create-partitions",
+        help="Create deterministic age-risk partitions.",
+    )
+
+    subparsers.add_parser(
+        "load-postgres",
+        help="Load curated data into PostgreSQL using rerun-safe UPSERT.",
+    )
+
+    subparsers.add_parser(
+        "storage-all",
+        help=(
+            "Export storage formats, verify equivalence, "
+            "create partitions, and load PostgreSQL."
+        ),
+    )
+
+    partition_parser = subparsers.add_parser(
+        "load-partition",
+        help="Load one selected partition independently.",
+    )
+
+    partition_parser.add_argument(
+        "--age-score-risk",
+        type=int,
+        required=True,
+        choices=[0, 1],
+        help="Age-risk partition to load.",
+    )
 
     return parser
 
 
 def main() -> int:
+    """Execute a CLI command."""
     parser = build_parser()
     args = parser.parse_args()
 
@@ -89,8 +173,28 @@ def main() -> int:
         elif args.command == "evaluate":
             result = evaluate_model()
 
+        elif args.command == "storage-export":
+            result = export_storage_formats()
+
+        elif args.command == "storage-verify":
+            result = verify_storage_equivalence()
+
+        elif args.command == "create-partitions":
+            result = create_partitions()
+
+        elif args.command == "load-postgres":
+            result = load_postgres()
+
+        elif args.command == "load-partition":
+            result = load_partition(
+                age_score_risk=args.age_score_risk
+            )
+
+        elif args.command == "storage-all":
+            result = storage_all()
+
         else:
-            parser.error("Unknown command.")
+            parser.error(f"Unknown command: {args.command}")
             return 2
 
         print(

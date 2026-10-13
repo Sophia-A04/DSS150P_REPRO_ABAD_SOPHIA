@@ -1,0 +1,42 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: dss150p-repro-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-dss150p}
+      POSTGRES_USER: ${POSTGRES_USER:-dss150p}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me}
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-dss150p} -d ${POSTGRES_DB:-dss150p}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - dss150p_postgres_data:/var/lib/postgresql/data
+
+  pipeline:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: dss150p-repro-pipeline
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: ${POSTGRES_DB:-dss150p}
+      POSTGRES_USER: ${POSTGRES_USER:-dss150p}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me}
+    volumes:
+      - .:/app
+    command:
+      - python
+      - -m
+      - src.cli
+      - verify-source
+
+volumes:
+  dss150p_postgres_data:
