@@ -8,11 +8,14 @@ import sys
 
 from src.benchmark import run_benchmark
 from src.evaluate import evaluate_model
+from src.failure_demo import run_contract_failure_demo
 from src.ingest import (
     ingest_full,
     ingest_incremental,
     verify_source_integrity,
 )
+from src.recovery_demo import run_interrupted_ingestion_demo
+from src.reset import reset_generated
 from src.storage import (
     create_partitions,
     export_storage_formats,
@@ -31,6 +34,7 @@ from src.validate import (
     validate_all,
     validate_data_quality,
     validate_database,
+    validate_raw_layer,
 )
 
 
@@ -45,7 +49,10 @@ def build_parser() -> argparse.ArgumentParser:
         required=True,
     )
 
+    # ------------------------------------------------------------------
     # Source and ingestion
+    # ------------------------------------------------------------------
+
     subparsers.add_parser(
         "verify-source"
     )
@@ -69,7 +76,10 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
     )
 
+    # ------------------------------------------------------------------
     # Transformation
+    # ------------------------------------------------------------------
+
     subparsers.add_parser(
         "transform-staging"
     )
@@ -82,7 +92,10 @@ def build_parser() -> argparse.ArgumentParser:
         "transform-all"
     )
 
+    # ------------------------------------------------------------------
     # Modeling
+    # ------------------------------------------------------------------
+
     subparsers.add_parser(
         "train"
     )
@@ -91,7 +104,10 @@ def build_parser() -> argparse.ArgumentParser:
         "evaluate"
     )
 
+    # ------------------------------------------------------------------
     # Storage
+    # ------------------------------------------------------------------
+
     subparsers.add_parser(
         "storage-export"
     )
@@ -123,7 +139,14 @@ def build_parser() -> argparse.ArgumentParser:
         choices=[0, 1],
     )
 
+    # ------------------------------------------------------------------
     # Validation
+    # ------------------------------------------------------------------
+
+    subparsers.add_parser(
+        "validate-raw"
+    )
+
     subparsers.add_parser(
         "validate-data"
     )
@@ -136,7 +159,70 @@ def build_parser() -> argparse.ArgumentParser:
         "validate-all"
     )
 
+    # ------------------------------------------------------------------
+    # Controlled contract-failure demonstration
+    # ------------------------------------------------------------------
+
+    failure_parser = subparsers.add_parser(
+        "demo-contract-failure"
+    )
+
+    failure_parser.add_argument(
+        "--scenario",
+        choices=[
+            "invalid-binary",
+            "missing-column",
+        ],
+        default="invalid-binary",
+    )
+
+    # ------------------------------------------------------------------
+    # Interrupted-ingestion recovery demonstration
+    # ------------------------------------------------------------------
+
+    recovery_parser = subparsers.add_parser(
+        "demo-interrupted-ingest"
+    )
+
+    recovery_parser.add_argument(
+        "--output",
+        default="docs/interrupted_run_log.json",
+        help=(
+            "Path where interrupted-run evidence "
+            "will be written."
+        ),
+    )
+
+    # ------------------------------------------------------------------
+    # Generated-state reset
+    # ------------------------------------------------------------------
+
+    reset_parser = subparsers.add_parser(
+        "reset-generated"
+    )
+
+    reset_parser.add_argument(
+        "--database",
+        action="store_true",
+        help=(
+            "Also reset project-owned "
+            "PostgreSQL tables."
+        ),
+    )
+
+    reset_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help=(
+            "Show generated state that would "
+            "be removed without deleting it."
+        ),
+    )
+
+    # ------------------------------------------------------------------
     # Benchmark
+    # ------------------------------------------------------------------
+
     benchmark_parser = subparsers.add_parser(
         "benchmark"
     )
@@ -203,6 +289,9 @@ def main() -> int:
         elif args.command == "storage-all":
             result = storage_all()
 
+        elif args.command == "validate-raw":
+            result = validate_raw_layer()
+
         elif args.command == "validate-data":
             result = validate_data_quality()
 
@@ -211,6 +300,22 @@ def main() -> int:
 
         elif args.command == "validate-all":
             result = validate_all()
+
+        elif args.command == "demo-contract-failure":
+            result = run_contract_failure_demo(
+                scenario=args.scenario
+            )
+
+        elif args.command == "demo-interrupted-ingest":
+            result = run_interrupted_ingestion_demo(
+                output_path=args.output
+            )
+
+        elif args.command == "reset-generated":
+            result = reset_generated(
+                reset_database=args.database,
+                dry_run=args.dry_run,
+            )
 
         elif args.command == "benchmark":
             result = run_benchmark(
@@ -250,4 +355,6 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(
+        main()
+    )

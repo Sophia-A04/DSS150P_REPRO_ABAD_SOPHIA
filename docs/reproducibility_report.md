@@ -2,153 +2,490 @@
 
 ## 1. Scope
 
-This report documents the individual DSS150P Lab Activity #4 reconstruction of the prior predictive analytics project on stroke risk.
+This report documents the individual DSS150P Laboratory Activity #4 reconstruction of a previous predictive analytics project on stroke risk.
 
-The goal was not to preserve a notebook exactly as it existed. The goal was to preserve the **meaning of the data and predictive experiment** while rebuilding the workflow as a reproducible data-engineering implementation with explicit source identity, transformations, storage, orchestration, testing, and recovery behavior.
+The objective was not to preserve the previous notebook exactly as it originally existed. The objective was to preserve the meaning of the source data and predictive experiment while rebuilding the workflow as a reproducible data-engineering pipeline with explicit source identity, ingestion, data contracts, transformation layers, storage controls, testing, orchestration, recovery behavior, and predictive verification.
 
-## 2. Historical Project and Reproduction Target
+## 2. Historical Project and Attribution
 
 Previous project:
 
 **Strengthening Philippine Stroke Care: A Machine Learning-Based Stroke Risk Assessment Focusing on Glucose Level, Hypertension, Heart Disease, BMI, and Smoking Status Factors**
 
-Canonical source:
+The historical predictive analytics project was completed as group work.
+
+This DSS150P repository is an individual engineering reconstruction by **Sophia Abad**.
+
+The historical group work provided the research topic, baseline predictive objective, and documented baseline results.
+
+The individual DSS150P implementation adds the reproducibility and data-engineering controls, including:
+
+- source identity verification;
+- full and incremental ingestion;
+- checkpoint recovery;
+- data-contract enforcement;
+- quarantine handling;
+- staging and curated data layers;
+- external SQL definitions;
+- PostgreSQL rerun safety;
+- storage equivalence;
+- automated tests;
+- benchmarking;
+- Airflow orchestration;
+- structured failure logging;
+- reproducibility validation; and
+- operational documentation.
+
+## 3. Canonical Source
+
+Canonical source file:
 
 `data/source/Stroke_Prediction_Dataset.csv`
 
-Source identity:
+Source dimensions:
 
-- rows: 5,110
-- columns: 12
-- SHA-256: `144ea5366832bb5432645c0e49fbb951aadf4ee1e75e73d2e15d3dc0841525bd`
+```text
+rows:    5110
+columns: 12
+```
+
+SHA-256:
+
+```text
+144ea5366832bb5432645c0e49fbb951aadf4ee1e75e73d2e15d3dc0841525bd
+```
+
+The source copy is treated as immutable.
+
+Its identity is controlled by:
+
+`metadata/source_manifest.yml`
+
+The pipeline verifies the source before ingestion and also checks that the full raw snapshot matches the verified source checksum.
+
+## 4. Predictive Reproduction Target
 
 Primary reproduced model:
 
 **Baseline Logistic Regression**
 
-Historical metrics:
+Documented historical metrics:
 
-- ROC-AUC: 0.6716
-- Accuracy: 0.6815
-- Recall: 0.5714
+```text
+ROC-AUC:  0.6716
+Accuracy: 0.6815
+Recall:   0.5714
+```
 
-## 3. Reproducible Pipeline Design
+Machine-readable expected values:
+
+`metadata/expected_metrics.json`
+
+## 5. Reproducible Pipeline Design
 
 The implementation separates responsibilities into reusable modules:
 
-- `src/ingest.py` - source integrity, full ingestion, incremental/checkpoint simulation, audit
-- `src/transform.py` - deterministic staging and curated transformations
-- `src/storage.py` - storage formats, logical equivalence, partitions, PostgreSQL UPSERT
-- `src/train.py` - deterministic model training and split manifest
-- `src/evaluate.py` - predictions, metrics, tolerance comparison
-- `src/validate.py` - environment, file, data-quality, storage, and database checks
-- `src/observe.py` - structured Airflow task/run records
-- `src/benchmark.py` - repeated storage benchmark
-- `src/cli.py` - command-line interface
+- `src/config.py` - repository configuration and path resolution
+- `src/contract.py` - data-contract loading and enforcement
+- `src/ingest.py` - source verification, full ingestion, incremental ingestion, checkpointing, and audit
+- `src/transform.py` - deterministic staging, quarantine, and curated transformations
+- `src/storage.py` - storage formats, logical equivalence, partitioning, PostgreSQL loading, and SQL execution
+- `src/train.py` - deterministic model training and split persistence
+- `src/evaluate.py` - predictions, metrics, and baseline comparison
+- `src/validate.py` - raw, environment, package, file, data-quality, storage, and database validation
+- `src/benchmark.py` - repeated storage benchmarking
+- `src/observe.py` - structured Airflow task and DAG event records
+- `src/failure_demo.py` - genuine contract-failure demonstrations
+- `src/recovery_demo.py` - interrupted incremental-ingestion demonstration
+- `src/reset.py` - safe generated-state reset
+- `src/cli.py` - unified command-line interface
 - `dags/predictive_repro_pipeline.py` - thin Airflow orchestration layer
 
-## 4. Data Lineage Summary
+The Airflow DAG delegates pipeline work to the same reusable modules used by the CLI.
+
+## 6. Data Lineage
 
 ```text
 Hugging Face source
-      |
-      v
+        |
+        v
 data/source/Stroke_Prediction_Dataset.csv
-      |
-      | checksum + schema verification
-      v
-data/raw/full + data/raw/incremental
-      |
-      v
+        |
+        | SHA-256 + manifest verification
+        v
+data/raw/full/
+        |
+        +-----------------------------+
+        |                             |
+        v                             v
+raw contract validation       incremental raw batches
+        |                             |
+        |                             v
+        |                   checkpoint + recovery
+        |
+        v
 data/staging/stroke_cleaned.csv
-      | \
-      |  \--> data/quarantine/rejected_records.csv
-      v
+        |
+        +---- invalid / excluded ----> data/quarantine/rejected_records.csv
+        |
+        v
 data/curated/stroke_model_ready.csv
-      |
-      +--> CSV / JSONL / Parquet
-      |
-      +--> PostgreSQL curated.stroke_model_ready
-      |
-      +--> model training
-                |
-                +--> metadata/split_manifest.json
-                +--> outputs/model/
-                +--> outputs/predictions.csv
-                +--> outputs/metrics.json
+        |
+        +--> CSV
+        |
+        +--> JSONL
+        |
+        +--> Parquet
+        |
+        +--> PostgreSQL
+        |
+        +--> deterministic model training
+                    |
+                    +--> metadata/split_manifest.json
+                    +--> outputs/model/
+                    +--> outputs/predictions.csv
+                    +--> outputs/metrics.json
 ```
 
-## 5. Ingestion and Rerun Safety
+Architecture and lineage diagrams are stored in:
 
-### Full ingestion
+```text
+docs/architecture.png
+docs/lineage.png
+```
 
-The source checksum is verified before ingestion. A full raw snapshot is copied atomically. If the same snapshot already exists with the same checksum, the run is skipped. If a conflicting file exists, the pipeline fails instead of overwriting it.
+## 7. Full Ingestion and Rerun Safety
 
-### Incremental demonstration
+Full ingestion first verifies the canonical source checksum.
 
-The source has no natural update timestamp. The pipeline therefore does **not** invent one. Instead, the source is split into deterministic row-order batches and progress is recorded in `metadata/ingestion_checkpoint.json`.
+The raw snapshot is written without modifying the canonical source.
 
-The checkpoint strategy is explicitly labeled as a laboratory simulation.
+If an identical raw snapshot already exists, the pipeline returns:
 
-### Auditability
+```text
+status: SKIPPED
+```
 
-`metadata/ingestion_audit.csv` records run IDs, UTC timestamps, mode, status, sequence ranges, row counts, batch numbers, paths, hashes, and messages.
+instead of creating duplicate data.
 
-## 6. Transformations
+A conflicting raw snapshot causes failure rather than silent overwrite.
 
-The staging layer performs data cleaning and eligibility handling while preserving rejected records in quarantine.
+This makes repeated execution safe and explicit.
 
-Observed result:
+## 8. Incremental Ingestion Strategy
 
-- source: 5,110 rows
-- staging: 3,265 rows
-- quarantine: 1,845 rows
+The dataset has no natural business update timestamp.
 
-The curated layer produces the model-ready dataset and engineered risk variables.
+The pipeline therefore does not invent one.
 
-Observed curated target counts:
+Incremental ingestion is explicitly implemented as a laboratory simulation using deterministic source-row batches.
 
-- stroke = 0: 3,019
-- stroke = 1: 246
+Checkpoint state is stored in:
 
-## 7. Storage Reproducibility
+`metadata/ingestion_checkpoint.json`
 
-The curated dataset is written to CSV, JSONL, Parquet, and PostgreSQL.
+The checkpoint tracks completion by batch number rather than pretending that the generated sequence represents business event time.
+
+The canonical run contains:
+
+```text
+total batches: 11
+total rows:    5110
+```
+
+After all batches are complete, another incremental run returns:
+
+```text
+status: SKIPPED
+message: No remaining batches.
+```
+
+## 9. Interrupted-Run Recovery
+
+A dedicated recovery demonstration exercises the real incremental-ingestion implementation.
+
+Command:
+
+```bash
+python -m src.cli demo-interrupted-ingest
+```
+
+The demonstration performs the following sequence:
+
+```text
+1. Process batches 1 and 2 normally.
+2. Write batch 3.
+3. Interrupt execution before checkpoint 3 becomes durable.
+4. Confirm checkpoint remains at batch 2.
+5. Rerun incremental ingestion.
+6. Resume from batch 3.
+7. Complete through batch 11.
+8. Verify final row and ID counts.
+```
+
+Observed recovery evidence:
+
+```text
+checkpoint before interruption: 2
+checkpoint after interruption:  2
+batch 3 file exists:             true
+last completed batch:            11
+rows:                            5110
+unique IDs:                      5110
+duplicate IDs:                   0
+status:                          PASS
+```
+
+Saved evidence:
+
+`docs/interrupted_run_log.json`
+
+This demonstrates that a written-but-uncheckpointed batch does not cause duplicate logical rows after recovery.
+
+## 10. Data Contract Enforcement
+
+The declared source contract is stored in:
+
+`metadata/data_contract.yml`
+
+The implementation is in:
+
+`src/contract.py`
+
+The contract validates:
+
+- expected columns;
+- missing required columns;
+- unexpected columns;
+- primary-key validity;
+- uniqueness requirements;
+- numeric types;
+- integer requirements;
+- string types;
+- nullability;
+- allowed categorical or binary values;
+- minimum values; and
+- maximum values.
+
+Structural violations such as a missing required column stop processing.
+
+Row-level violations are assigned explicit rejection reasons and prevented from entering staging/modeling.
+
+For example:
+
+```text
+hypertension must be in {0, 1}
+heart_disease must be in {0, 1}
+stroke must be in {0, 1}
+```
+
+The canonical source produces:
+
+```text
+contract_invalid_rows: 0
+status: PASS
+```
+
+## 11. Genuine Invalid-Condition Demonstration
+
+The original failure demonstration was replaced with a real data-quality failure.
+
+Command:
+
+```bash
+python -m src.cli demo-contract-failure \
+  --scenario invalid-binary
+```
+
+The demonstration creates a temporary copy in which:
+
+```text
+hypertension = 7
+```
+
+The contract correctly detects:
+
+```text
+hypertension: value_not_allowed
+```
+
+and returns:
+
+```text
+error_type: ControlledDataQualityFailure
+status: FAILED
+```
+
+A second scenario removes the required `hypertension` column:
+
+```bash
+python -m src.cli demo-contract-failure \
+  --scenario missing-column
+```
+
+This also fails through genuine schema validation.
+
+The canonical source and raw snapshot are not modified by either demonstration.
+
+## 12. Staging and Quarantine
+
+The staging layer performs deterministic source cleaning and modeling-population eligibility handling.
+
+Canonical results:
+
+```text
+source rows:            5110
+staging rows:           3265
+quarantined rows:       1845
+contract-invalid rows:  0
+```
+
+The canonical 1,845 rejected rows result from the documented modeling-age scope rather than invalid clinical binary values.
+
+Quarantine output:
+
+`data/quarantine/rejected_records.csv`
+
+Each rejected row includes a `rejection_reason`.
+
+Invalid contract rows, if introduced, are therefore traceable rather than silently discarded.
+
+## 13. Curated Data
+
+Curated output:
+
+`data/curated/stroke_model_ready.csv`
+
+Canonical curated rows:
+
+```text
+3265
+```
+
+Observed target distribution:
+
+```text
+stroke = 0: 3019
+stroke = 1: 246
+```
+
+The curated layer contains the model-oriented engineered variables used for the reproduced predictive experiment.
+
+It remains distinct from the canonical source and raw layers.
+
+## 14. Externalized SQL
+
+Database definitions are stored in:
+
+```text
+sql/schema.sql
+sql/transformations.sql
+```
+
+`src/storage.py` loads and executes these files rather than keeping the complete schema and UPSERT logic embedded only inside Python.
+
+This makes the database implementation separately inspectable and directly addresses the requirement that SQL artifacts be meaningful project components.
+
+## 15. PostgreSQL Rerun Safety
+
+The curated PostgreSQL table uses patient `id` as the logical primary key.
+
+Repeated loads use UPSERT behavior.
+
+Observed after reruns:
+
+```text
+table rows:   3265
+distinct IDs: 3265
+status:       PASS
+```
+
+Therefore, retrying or rerunning the load does not create duplicate logical records.
+
+## 16. Storage Equivalence
+
+The curated dataset is represented as:
+
+- CSV;
+- JSON Lines;
+- Parquet; and
+- PostgreSQL.
 
 Full logical hash:
 
-`ee5df2e0884ce360a85252cf9bf1bb5a062e24a3f4ffc631682ee358562b44a8`
+```text
+ee5df2e0884ce360a85252cf9bf1bb5a062e24a3f4ffc631682ee358562b44a8
+```
 
-All file formats and PostgreSQL match this same logical row set.
+Filtered workload:
 
-PostgreSQL loading is rerun-safe through the `id` primary key and UPSERT behavior. Repeated full loads remain at:
+```text
+stroke == 1
+```
 
-- table rows: 3,265
-- distinct IDs: 3,265
+Filtered logical hash:
 
-Selected partition loading is also independently rerunnable.
+```text
+233774545d2a6a25b7cd071f1ea452289274316fb1d47d2a7e9a54c443d5aac1
+```
 
-## 8. Model Determinism
+All tested representations match both the canonical full-row hash and filtered-row hash.
 
-The model reproduction uses:
+Therefore, the storage benchmark compares equivalent logical data rather than merely matching row counts.
 
-- deterministic random seed: 42
-- stratified 80/20 split
-- persisted training/test IDs
-- fixed feature preparation
-- `StandardScaler`
-- baseline Logistic Regression
-- `class_weight="balanced"`
-- pinned dependency versions
+## 17. Partition Design
 
-Split sizes:
+The curated dataset is partitioned by:
 
-- training: 2,612 rows
-- test: 653 rows
+`age_score_risk`
 
-The test IDs are persisted in `metadata/split_manifest.json`, allowing the same evaluation population to be reconstructed.
+Observed partitions:
 
-## 9. Predictive Result Consistency
+```text
+age_score_risk=0: 1486 rows
+age_score_risk=1: 1779 rows
+```
+
+The partition column was selected because it is:
+
+- deterministic;
+- derived consistently from the modeling-age population;
+- low-cardinality;
+- relevant to the analytical risk grouping; and
+- suitable for demonstrating independent subset loading.
+
+The partitioning strategy is a laboratory demonstration rather than a claim that `age_score_risk` is universally optimal for large-scale production partitioning.
+
+Selected-partition loading is tested independently and remains rerun-safe.
+
+## 18. Model Determinism
+
+The reproduced model uses:
+
+```text
+random_state=42
+stratified 80/20 train/test split
+persisted split IDs
+StandardScaler
+baseline Logistic Regression
+class_weight="balanced"
+pinned package versions
+```
+
+Observed split:
+
+```text
+training rows: 2612
+test rows:      653
+```
+
+The split IDs are stored in:
+
+`metadata/split_manifest.json`
+
+This makes the train/test population independently inspectable.
+
+## 19. Predictive Result Consistency
 
 | Metric | Expected | Reproduced | Absolute Difference | Tolerance | Result |
 |---|---:|---:|---:|---:|---|
@@ -156,236 +493,445 @@ The test IDs are persisted in `metadata/split_manifest.json`, allowing the same 
 | Accuracy | 0.6815 | 0.6814701378 | 0.0000298622 | 0.01 | PASS |
 | Recall | 0.5714 | 0.5714285714 | 0.0000285714 | 0.01 | PASS |
 
-The reproduced predictive result therefore satisfies the declared tolerance rule.
+The reproduced Logistic Regression therefore satisfies the declared metric-tolerance rule.
 
-## 10. Testing and Validation
+## 20. Validation
 
-`python -m src.cli validate-all` verifies:
+The complete validation command is:
 
-- source identity;
-- required dependencies;
-- required repository files;
-- data-quality assertions;
-- storage equivalence;
-- PostgreSQL connectivity and row state.
-
-Automated tests:
-
-```text
-5 passed
+```bash
+python -m src.cli validate-all
 ```
 
-Tests include:
+It verifies:
+
+- canonical source identity;
+- actual raw-layer checksum;
+- raw-layer data contract;
+- required package versions;
+- required non-empty project files;
+- staging data quality;
+- quarantine integrity;
+- curated data quality;
+- storage equivalence;
+- PostgreSQL connectivity;
+- PostgreSQL row count; and
+- PostgreSQL distinct-ID count.
+
+Current verified result:
+
+```text
+status: PASS
+```
+
+## 21. Automated Tests
+
+Command:
+
+```bash
+python -m pytest -c ./pytest.ini -q
+```
+
+Current verified result:
+
+```text
+8 passed
+```
+
+The suite covers:
 
 - source integrity;
 - row-order-independent logical hashing;
-- deterministic feature preparation;
+- deterministic model feature preparation;
+- contract detection of invalid binary values;
+- quarantine behavior for an invalid record;
 - full storage equivalence;
 - PostgreSQL rerun safety;
-- selected-partition loading.
+- selected-partition loading; and
+- interrupted incremental-ingestion recovery.
 
-## 11. Airflow Orchestration
+## 22. Airflow Orchestration
 
 DAG:
 
 `dss150p_predictive_repro_pipeline`
 
-Sequence:
+Task sequence:
 
 ```text
 ingest_source
-→ validate_raw
-→ transform_staging
-→ build_curated
-→ load_postgres
-→ validate_curated
-→ train_model
-→ evaluate_model
-→ reproducibility_check
-→ publish_outputs
+    |
+    v
+validate_raw
+    |
+    v
+transform_staging
+    |
+    v
+build_curated
+    |
+    v
+load_postgres
+    |
+    v
+validate_curated
+    |
+    v
+train_model
+    |
+    v
+evaluate_model
+    |
+    v
+reproducibility_check
+    |
+    v
+publish_outputs
 ```
 
-Operational controls:
-
-- retries: 1
-- retry delay: 10 seconds
-- task execution timeout: 10 minutes
-- `max_active_runs=1`
-- `max_active_tasks=2`
-- DAG run timeout: 30 minutes
-- `catchup=False`
-- runtime parameters for ingestion mode and failure injection
-
-The Airflow DAG remains thin and delegates work to the reusable modules.
-
-## 12. Failure and Recovery Demonstration
-
-Observed sequence:
+Operational controls include:
 
 ```text
-lab4_success    SUCCESS
-lab4_failure    FAILED
-lab4_recovery   SUCCESS
+retries:             1
+retry delay:         10 seconds
+task timeout:        10 minutes
+max_active_runs:     1
+max_active_tasks:    2
+DAG run timeout:     30 minutes
+catchup:             false
 ```
 
-The failed run intentionally used:
+The DAG remains thin and delegates processing to reusable modules.
+
+## 23. Airflow Failure and Recovery
+
+A real contract-driven Airflow failure was demonstrated using:
 
 ```json
-{"inject_failure": true}
+{"failure_scenario":"invalid-binary"}
 ```
 
-The `validate_raw` task retried and ultimately logged a structured `ValueError` with final `try_number: 2`.
+Observed run:
 
-The recovery run disabled the injected failure and completed successfully.
+```text
+lab4_contract_failure    FAILED
+```
 
-Evidence:
+The `validate_raw` task fails because the temporary demonstration dataset contains a genuine invalid contract value.
 
-- `metadata/pipeline_events.jsonl`
-- `metadata/pipeline_runs.jsonl`
+A subsequent canonical run uses:
 
-## 13. Storage Benchmark Summary
+```json
+{"failure_scenario":"none"}
+```
 
-The same logical dataset was benchmarked using five repeated writes, full reads, and filtered reads/queries.
+Observed run:
 
-Parquet was the smallest and fastest representation for this specific small analytical workload.
+```text
+lab4_contract_recovery   SUCCESS
+```
 
-The result is not generalized to all workloads. PostgreSQL offers transactional and constraint behavior that a pure file benchmark does not measure.
+Structured task and DAG evidence is stored in:
+
+```text
+metadata/pipeline_events.jsonl
+metadata/pipeline_runs.jsonl
+```
+
+This is stronger than an arbitrary manually raised exception because the failure is produced by an actual data-quality control.
+
+## 24. Fresh-Clone Reproduction
+
+The repository contains selected generated artifacts as reproducibility evidence.
+
+To prevent a fresh clone from appearing permanently "already done," a safe reset command is available.
+
+Inspect without deleting:
+
+```bash
+python -m src.cli reset-generated --dry-run
+```
+
+Reset generated files:
+
+```bash
+python -m src.cli reset-generated
+```
+
+Reset generated files and project-owned PostgreSQL tables:
+
+```bash
+python -m src.cli reset-generated --database
+```
+
+The reset preserves the canonical source, source manifest, data contract, expected metrics, source code, tests, and documentation.
+
+This gives a reviewer an explicit route from repository clone to regenerated pipeline state.
+
+## 25. Storage Benchmark Summary
+
+The same 3,265-row logical dataset is benchmarked across CSV, JSONL, Parquet, and PostgreSQL.
+
+Each representation is measured repeatedly for:
+
+- write or UPSERT;
+- full read; and
+- filtered read/query.
+
+All representations are verified against full and filtered logical hashes during the benchmark.
+
+For the current small local analytical workload, Parquet produced the smallest representation and lowest median times.
+
+This result is explicitly machine-specific and should not be generalized to every workload.
 
 See:
 
 `docs/benchmark_report.md`
 
-## 14. Deviations from the Prior Group Project
+## 26. Engineering Gap Summary
 
-The reproduction intentionally differs from the previous project in engineering structure:
+| Previous Notebook-Oriented Limitation | DSS150P Engineering Control |
+|---|---|
+| Environment assumptions were implicit | Pinned dependencies, Docker, `.env.example` |
+| Source identity was not machine-verified | SHA-256 source manifest |
+| Source and derived files were not clearly separated | Source, raw, staging, curated, quarantine layers |
+| Data-quality rules were procedural | Executable YAML data contract |
+| Invalid records could silently continue | Contract-driven quarantine or failure |
+| Incremental recovery was absent | Durable checkpoint plus interruption/recovery demonstration |
+| Fresh clone could appear already processed | Safe `reset-generated` command |
+| Database reruns could duplicate records | Primary key plus UPSERT |
+| SQL logic was not externally inspectable | `schema.sql` and `transformations.sql` |
+| Train/test identity was implicit | Persisted split IDs and hashes |
+| Workflow depended on execution order | Reusable modules, CLI, and Airflow DAG |
+| Failures were weakly observable | Structured JSONL task/run records |
+| Storage comparisons could use unequal data | Full and filtered logical hashes |
+| Timing could rely on one observation | Repeated benchmark plus median and standard deviation |
+| Operational reproduction required manual knowledge | README, runbook, reset command, validation, and tests |
 
-1. The workflow is modular Python rather than notebook-only.
-2. Source identity is controlled by checksum and manifest.
-3. Raw, staging, curated, quarantine, partitioned, and output layers are explicit.
-4. Incremental processing is an explicit deterministic simulation because the source lacks a natural timestamp.
-5. PostgreSQL loading is rerun-safe.
-6. Model split IDs and expected metrics are machine-readable.
-7. Airflow orchestration and structured failure/recovery evidence are included.
-8. Storage equivalence is proven with logical hashes.
-9. Storage benchmarks use repeated measurements instead of a single timing.
-10. Automated validation and tests are included.
+## 27. Analysis and Reflection
 
-These changes are implementation improvements, not changes to the intended predictive question.
+### 27.1 What prevented immediate reproduction of the previous predictive project?
 
-# 15. Required Analysis and Reflection Questions
+The previous work was primarily notebook-oriented. Reproduction depended on implicit execution order, local environment state, locally available files, and manually remembered steps.
 
-## 15.1 What aspects of the previous predictive analytics project prevented another person from reproducing it immediately?
+The reconstructed pipeline makes those assumptions explicit through configuration, pinned dependencies, source manifests, data layers, tests, validation, and orchestration.
 
-The previous work was primarily notebook/project-file oriented rather than an engineered pipeline. Reproduction therefore depended on implicit execution order, local environment state, manually available files, and undocumented operational steps. It also lacked an explicit immutable source checksum, externalized configuration, raw/staging/curated data layers, checkpointed ingestion, rerun-safe database loading, automated tests, and orchestrated failure/recovery evidence. Lab Activity #4 makes those assumptions explicit.
+### 27.2 What is the authoritative source?
 
-## 15.2 Which artifact is the true authoritative source: the original file, the raw ingested copy, the curated dataset, or the model-ready dataset? Explain the role of each.
+The canonical source file identified by the manifest and checksum is the source of truth.
 
-The authoritative data source is the canonical original source file identified by `metadata/source_manifest.yml` and its SHA-256 checksum.
+Roles are separated as follows:
 
-- **Source file:** source truth and provenance anchor.
-- **Raw ingested copy:** immutable operational snapshot used by the pipeline.
-- **Staging:** cleaned and eligibility-controlled representation; rejected rows remain traceable through quarantine.
-- **Curated/model-ready dataset:** authoritative input for the reproduced predictive experiment, but not a replacement for source truth.
-- **Model artifact:** derived output and therefore never the authoritative data source.
+- **Source:** provenance anchor and immutable data truth.
+- **Raw:** operational ingestion snapshot.
+- **Staging:** cleaned and contract-controlled analytical population.
+- **Quarantine:** traceable rejected or excluded records.
+- **Curated:** model-ready analytical representation.
+- **Model/output files:** derived products, never source truth.
 
-## 15.3 What identifier or rule did you use to prevent duplicates, and what assumption makes that rule valid?
+### 27.3 How are duplicates prevented?
 
-Patient `id` is the logical primary key. The source profile verifies 5,110 unique IDs, and the curated PostgreSQL table declares `id` as its primary key. UPSERT uses `ON CONFLICT (id)` so retries update/reconfirm the logical record instead of adding a duplicate. This is valid only under the assumption that the dataset's `id` consistently identifies one logical patient record.
+Patient `id` is treated as the logical primary key.
 
-## 15.4 If your dataset has no natural update timestamp, how did you simulate incremental ingestion without pretending that the generated checkpoint is a real business timestamp?
+PostgreSQL uses primary-key UPSERT behavior.
 
-The incremental path uses deterministic source-row sequence batches, not fabricated timestamps. The checkpoint records the source checksum, configured batch size, total rows, total batches, completed batch metadata, and last completed batch. It is explicitly labeled `strategy: immutable_source_row_sequence` and `laboratory_simulation: true`. This demonstrates checkpoint/resume behavior without misrepresenting sequence numbers as business event time.
+Incremental ingestion uses deterministic batch identity and persisted checkpoints.
 
-## 15.5 Which transformations belong in staging versus curated, and why?
+Repeated runs therefore preserve logical uniqueness.
 
-Staging contains source cleaning and eligibility operations needed to create a valid, consistent analytical population: category cleanup, age eligibility, deterministic BMI handling, duplicate prevention, and quarantine.
+### 27.4 How is incremental ingestion simulated without inventing a timestamp?
 
-Curated contains downstream model-oriented feature engineering such as risk scores and engineered variables. This separation keeps source-cleaning semantics distinct from features created specifically for analytical/model use and makes each layer independently inspectable.
+The source contains no natural event/update timestamp.
 
-## 15.6 Which storage format performed best for your workload? Why should your result not be generalized to every data-engineering workload?
+Incremental ingestion therefore uses deterministic source-row batches and a batch-number checkpoint.
 
-Parquet performed best in this benchmark: it was the smallest representation and had the lowest median write, full-read, and filtered-read times.
+The generated checkpoint is explicitly operational state and not represented as a business timestamp.
 
-This result should not be generalized because the benchmark is small, local, single-user, and machine-specific. Different row counts, schemas, compression, filters, concurrency, network latency, database indexes, and access patterns can change the result. PostgreSQL also provides transactional and constraint capabilities that file timing alone does not measure.
+### 27.5 Which transformations belong in staging versus curated?
 
-## 15.7 What happens if Airflow retries your load task after the database committed but the task process did not receive confirmation?
+Staging contains source cleaning, contract enforcement, eligibility logic, imputation, and quarantine decisions.
 
-The task may replay the same database load. A non-idempotent insert could create duplicates or fail on repeated records. In this implementation, replaying the load is safe for the curated table because `id` is the primary key and the operation uses UPSERT. The logical table therefore remains at 3,265 unique rows.
+Curated contains model-oriented feature engineering.
 
-## 15.8 How does your design make that retry safe?
+This separates source/data-quality semantics from predictive-feature construction.
 
-Retry safety is implemented at several layers:
+### 27.6 Which storage format performed best?
 
-- PostgreSQL uses primary-key UPSERT by `id`.
-- Full ingestion checks the destination checksum and skips an identical snapshot.
-- Incremental ingestion persists completed batches in a checkpoint.
-- Existing incremental batch files are checksum-verified.
-- JSON checkpoint writes use a temporary file followed by atomic replacement.
-- Transformations are deterministic and overwrite reproducible derived outputs rather than append uncontrolled duplicates.
+For this small local benchmark, Parquet had the smallest file size and lowest median write/read timings.
 
-## 15.9 Which data-quality check is most likely to detect a change that would silently damage model accuracy?
+The conclusion is workload-specific and should not be generalized because scale, hardware, cache state, indexes, concurrency, compression, network conditions, and workload design can change the result.
 
-Among the current data-quality assertions, the exact curated row/class-count checks are particularly useful because a change in filtering or target population can alter the model without producing an obvious schema error. Source checksum/schema verification catches unapproved source changes. The strongest final safeguard is the model reproducibility comparison in `outputs/metrics.json`, which detects a behavior change even if structural checks still pass.
+### 27.7 What happens if Airflow retries after PostgreSQL already committed?
 
-## 15.10 How do you know that your training and test rows are the same logical rows used in your baseline result?
+The same logical load can be replayed.
 
-The split is deterministic with `random_state=42` and stratification, and the resulting training and test patient IDs are persisted in `metadata/split_manifest.json`. The manifest includes row counts and SHA-256 hashes for the train/test ID sets. Evaluation reconstructs the test population from those persisted IDs instead of performing a new uncontrolled split.
+Because PostgreSQL uses `id` as the primary key and performs UPSERT, the replay updates or reconfirms existing logical rows instead of appending duplicates.
 
-## 15.11 What sources of nondeterminism remain in your model or environment?
+### 27.8 How is retry safety implemented?
 
-Remaining nondeterminism includes floating-point/library implementation differences across platforms, low-level numerical libraries, filesystem cache effects, Docker/database scheduling, benchmark timing noise, and Airflow-generated timestamps/run metadata. Dependency pinning, fixed split IDs, fixed random state, and tolerance-based metric comparison reduce but do not eliminate all environment-level variation.
+Retry safety is supported by:
 
-## 15.12 If the reproduced metric differs from the original, how can you determine whether the cause is data, preprocessing, split logic, dependencies, model parameters, or nondeterministic execution?
+- checksum-based full-ingestion skipping;
+- durable incremental checkpoints;
+- existing batch-file verification;
+- atomic checkpoint replacement;
+- deterministic transformations;
+- PostgreSQL primary-key UPSERT; and
+- repeatable model split persistence.
 
-Diagnose stage by stage:
+### 27.9 Which data-quality checks are most important for protecting model accuracy?
 
-1. verify the source checksum and schema;
-2. compare raw/staging/curated row counts and logical hashes;
-3. verify transformation configuration and engineered columns;
-4. compare persisted train/test IDs and split hashes;
-5. verify pinned package versions;
-6. compare serialized model configuration and feature columns;
-7. rerun training/evaluation under the same environment;
-8. compare machine-readable expected versus actual metrics.
+Important checks include:
 
-This isolates where the first reproducibility divergence appears.
+- source checksum;
+- schema validity;
+- binary-domain checks;
+- modeling-population row counts;
+- target-class counts;
+- persisted split identity; and
+- final predictive metric comparison.
 
-## 15.13 What would you monitor if this pipeline ran every day in production?
+Together these can detect both structural corruption and silent behavioral changes.
 
-I would monitor source checksum/version, schema changes, ingestion lag/checkpoint progress, row counts, quarantine rate, missingness, category/domain violations, duplicate IDs, class distribution, task duration, retry/failure rate, database row counts, storage growth, prediction distribution, metric drift when labels are available, Airflow timeout/SLA behavior, and repeated recovery events.
+### 27.10 How do we know the same logical test population is used?
 
-## 15.14 What part of your current architecture would become the first bottleneck if the dataset grew by 100x?
+The train/test split is deterministic and the patient IDs are persisted in:
 
-The current row-oriented PostgreSQL UPSERT and single-process local processing would become likely bottlenecks before they are problematic at the current scale. The benchmark already shows PostgreSQL writes as the slowest write path. At much larger scale I would replace row-wise loading with bulk loading/staging-table merge techniques, use more scalable columnar processing, and move from a sequential local executor to an execution model appropriate for parallel workloads.
+`metadata/split_manifest.json`
 
-## 15.15 What would you change if the dataset became sensitive or regulated data?
+The split manifest includes row counts and hashes that identify the logical train/test sets.
 
-I would stop committing raw or record-level derived data to a public repository. Source manifests would reference controlled storage instead. I would use encryption in transit and at rest, least-privilege access, private networking, secret management, audited access, retention/deletion rules, restricted logs, de-identification or tokenization where appropriate, and organization-approved environments. Public repository artifacts would be limited to code, schemas, synthetic examples, non-sensitive metadata, and reproducibility instructions.
+### 27.11 What nondeterminism remains?
 
-## 16. Acceptance Evidence Summary
+Possible environment-level variation remains from:
+
+- floating-point implementations;
+- operating-system differences;
+- low-level numerical libraries;
+- filesystem caching;
+- Docker scheduling;
+- PostgreSQL execution state;
+- Airflow-generated timestamps; and
+- benchmark timing noise.
+
+Fixed seeds, pinned dependencies, split persistence, and tolerance-based comparison reduce these effects.
+
+### 27.12 How should a metric mismatch be diagnosed?
+
+Diagnose in order:
+
+```text
+1. source checksum
+2. raw checksum
+3. contract validation
+4. staging row count
+5. quarantine reasons
+6. curated logical hash
+7. train/test split IDs
+8. dependency versions
+9. model parameters
+10. reproduced metrics
+```
+
+The first stage that diverges identifies the most likely cause.
+
+### 27.13 What should be monitored in production?
+
+Useful monitoring would include:
+
+- source version/checksum;
+- schema changes;
+- ingestion checkpoint lag;
+- quarantine rate;
+- missingness;
+- domain violations;
+- duplicate IDs;
+- class distribution;
+- task duration;
+- retries and failures;
+- PostgreSQL row counts;
+- prediction distribution;
+- metric drift when labels become available; and
+- repeated recovery events.
+
+### 27.14 What would become a bottleneck at 100x scale?
+
+Likely bottlenecks include:
+
+- row-oriented Python processing;
+- repeated local file reads;
+- row-wise PostgreSQL UPSERT;
+- single-host execution; and
+- local storage throughput.
+
+At greater scale, bulk loading, staged database merges, scalable columnar processing, and distributed/parallel execution would be considered.
+
+### 27.15 What would change for sensitive or regulated data?
+
+The public repository would no longer contain raw or record-level derived data.
+
+The design would require controlled storage, encryption, least-privilege access, secret management, audit logging, retention policies, restricted networking, and de-identification or tokenization where appropriate.
+
+## 28. Acceptance Evidence Summary
 
 | Acceptance Area | Evidence |
 |---|---|
-| Repository/setup | Git history, README, pinned requirements, Docker files |
-| Source identity | `source_manifest.yml`, SHA-256 validation |
-| No machine-specific paths required | path resolution from repository/configuration |
-| No committed secrets | `.gitignore`, `.env.example` |
-| Full ingestion | raw snapshot + ingestion audit |
-| Incremental ingestion | checkpoint + deterministic batches |
-| Deterministic staging/curated | repeatable transformations and validation |
-| PostgreSQL rerun safety | primary key + UPSERT + integration test |
+| Canonical source identity | `metadata/source_manifest.yml` |
+| Source checksum | SHA-256 verification |
+| Full ingestion | raw snapshot plus ingestion audit |
+| Incremental ingestion | deterministic batches plus checkpoint |
+| Interrupted recovery | `docs/interrupted_run_log.json` |
+| Data contract | `metadata/data_contract.yml`, `src/contract.py` |
+| Invalid-row handling | quarantine rejection reasons |
+| Genuine failure detection | `src/failure_demo.py` |
+| Staging/curated determinism | repeatable transformations and validation |
+| PostgreSQL rerun safety | primary key plus UPSERT |
+| External SQL | `sql/schema.sql`, `sql/transformations.sql` |
 | Storage equivalence | identical logical hashes |
 | Selected partition | independent `age_score_risk=1` load |
-| Airflow | valid DAG, explicit dependency chain |
-| Recoverable failure | `lab4_failure` followed by `lab4_recovery` |
-| Invalid-condition detection | source/data validators + deliberate Airflow failure |
-| Second-run duplicate safety | table remains 3,265 distinct IDs |
-| Regenerated metrics | `train` + `evaluate` from curated data |
-| Tolerance rule | all required metrics PASS |
-| Documentation | README, runbook, benchmark report, reproducibility report, diagrams |
+| Model determinism | persisted split manifest |
+| Reproduced metrics | `outputs/metrics.json` |
+| Metric tolerance | expected vs actual PASS |
+| Automated tests | `8 passed` |
+| Airflow orchestration | valid 10-task DAG |
+| Real Airflow failure | `lab4_contract_failure` |
+| Airflow recovery | `lab4_contract_recovery` |
+| Structured run records | `pipeline_events.jsonl`, `pipeline_runs.jsonl` |
+| Fresh-clone reset | `reset-generated` |
+| Benchmark evidence | results CSV, context JSON, benchmark report |
+| Documentation | README, runbook, reports, diagrams |
 
-## 17. Conclusion
+## 29. Known Limitations
 
-The final repository is not merely a copy of the previous notebook project. It is an independently structured reproducible implementation with explicit source identity, deterministic transformations, rerun-safe storage, repeatable model evaluation, tests, Airflow orchestration, failure/recovery evidence, and machine-readable acceptance checks.
+The dataset is static and contains no natural business update timestamp. Incremental ingestion is therefore a deterministic laboratory simulation.
 
-The reproduced Logistic Regression result matches the historical baseline within the documented tolerance, while the surrounding engineering controls make the result explainable and repeatable.
+The project reproduces the documented Logistic Regression baseline rather than every model explored in the historical project.
+
+Benchmark results are machine-specific.
+
+The dataset is class-imbalanced, so accuracy alone is not sufficient to judge model usefulness.
+
+Verification of the historical baseline directly against the original previous-term notebook or paper requires those original artifacts.
+
+## 30. Conclusion
+
+The final repository is not simply a copy of a previous notebook.
+
+It is an independently structured reproducible data-engineering implementation with:
+
+- explicit source identity;
+- contract enforcement;
+- deterministic transformations;
+- traceable quarantine;
+- restartable incremental ingestion;
+- interrupted-run recovery evidence;
+- rerun-safe storage;
+- external SQL;
+- automated validation;
+- automated testing;
+- repeated storage benchmarking;
+- Airflow orchestration;
+- genuine data-quality failure handling; and
+- predictive metric reproduction.
+
+The reproduced Logistic Regression result matches the documented historical baseline within the declared tolerance while providing substantially stronger engineering controls for repeatability, observability, and recovery.

@@ -1,0 +1,52 @@
+{
+  "final_state": {
+    "batch_files": 11,
+    "duplicate_ids": 0,
+    "last_completed_batch": 11,
+    "rows": 5110,
+    "total_batches": 11,
+    "unique_ids": 5110
+  },
+  "first_run": {
+    "last_completed_batch": 2,
+    "mode": "incremental",
+    "pipeline_run_id": "incremental-0a98929c3a45",
+    "processed_batches": [
+      1,
+      2
+    ],
+    "rows_processed": 1000,
+    "status": "SUCCESS",
+    "total_batches": 11
+  },
+  "generated_at_utc": "2026-10-13T18:50:28.429600+00:00",
+  "interrupted_run": {
+    "attempted_batch": 3,
+    "batch_3_file_exists": true,
+    "checkpoint_after": 2,
+    "checkpoint_before": 2,
+    "error_message": "Controlled interruption after batch 3 file write and before checkpoint persistence.",
+    "error_type": "RuntimeError"
+  },
+  "resumed_run": {
+    "last_completed_batch": 11,
+    "mode": "incremental",
+    "pipeline_run_id": "incremental-5fb15b009267",
+    "processed_batches": [
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11
+    ],
+    "rows_processed": 4110,
+    "status": "SUCCESS",
+    "total_batches": 11
+  },
+  "scenario": "batch_3_written_then_checkpoint_write_interrupted",
+  "status": "PASS"
+}

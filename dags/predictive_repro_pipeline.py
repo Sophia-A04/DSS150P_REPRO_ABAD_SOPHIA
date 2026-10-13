@@ -3,17 +3,26 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timedelta
+from datetime import (
+    datetime,
+    timedelta,
+)
 from pathlib import Path
 
 from airflow import DAG
-from airflow.operators.python import PythonOperator
+from airflow.operators.python import (
+    PythonOperator,
+)
 
-from src.evaluate import evaluate_model
+from src.evaluate import (
+    evaluate_model,
+)
+from src.failure_demo import (
+    run_contract_failure_demo,
+)
 from src.ingest import (
     ingest_full,
     ingest_incremental,
-    verify_source_integrity,
 )
 from src.observe import (
     dag_failure_callback,
@@ -21,13 +30,20 @@ from src.observe import (
     task_failure_callback,
     task_success_callback,
 )
-from src.storage import load_postgres
-from src.train import train_model
+from src.storage import (
+    load_postgres,
+)
+from src.train import (
+    train_model,
+)
 from src.transform import (
     build_curated,
     build_staging,
 )
-from src.validate import validate_data_quality
+from src.validate import (
+    validate_data_quality,
+    validate_raw_layer,
+)
 
 
 PROJECT_ROOT = Path(
@@ -35,50 +51,120 @@ PROJECT_ROOT = Path(
 )
 
 
-def ingest_source(**context):
+def ingest_source(
+    **context,
+):
     """Run full or incremental ingestion based on DAG parameter."""
-    params = context["params"]
-
-    run_mode = params.get(
-        "run_mode",
-        "full",
+    params = (
+        context[
+            "params"
+        ]
     )
 
-    if run_mode == "full":
+    run_mode = (
+        params.get(
+            "run_mode",
+            "full",
+        )
+    )
+
+    if (
+        run_mode
+        == "full"
+    ):
         return ingest_full()
 
-    if run_mode == "incremental":
-        return ingest_incremental(
-            ingest_all=True
+    if (
+        run_mode
+        == "incremental"
+    ):
+        return (
+            ingest_incremental(
+                ingest_all=True
+            )
         )
 
     raise ValueError(
-        "run_mode must be 'full' or 'incremental'."
+        "run_mode must be "
+        "'full' or 'incremental'."
     )
 
 
-def validate_raw(**context):
-    """Verify source integrity and support safe failure injection."""
-    params = context["params"]
+def validate_raw(
+    **context,
+):
+    """
+    Validate the actual raw layer.
 
-    inject_failure = bool(
+    Optional failure scenarios use a temporary corrupted copy so the
+    canonical source and raw data remain untouched.
+    """
+    params = (
+        context[
+            "params"
+        ]
+    )
+
+    scenario = str(
+        params.get(
+            "failure_scenario",
+            "none",
+        )
+    ).strip().lower()
+
+    # Backward compatibility with the earlier demonstration command.
+    legacy_injection = bool(
         params.get(
             "inject_failure",
             False,
         )
     )
 
-    if inject_failure:
-        raise ValueError(
-            "Deliberate Lab #4 failure injection: "
-            "invalid runtime configuration requested."
+    if (
+        legacy_injection
+        and scenario == "none"
+    ):
+        scenario = (
+            "invalid-binary"
         )
 
-    result = verify_source_integrity()
-
-    if result["status"] != "PASS":
+    if scenario not in {
+        "none",
+        "invalid-binary",
+        "missing-column",
+    }:
         raise ValueError(
-            "Raw/source validation did not pass."
+            "failure_scenario must be "
+            "'none', 'invalid-binary', "
+            "or 'missing-column'."
+        )
+
+    if (
+        scenario
+        != "none"
+    ):
+        return (
+            run_contract_failure_demo(
+                scenario=(
+                    scenario
+                )
+            )
+        )
+
+    result = (
+        validate_raw_layer()
+    )
+
+    if (
+        result[
+            "status"
+        ]
+        != "PASS"
+    ):
+        raise ValueError(
+            "Raw-layer validation "
+            "did not pass: "
+            f"{result}"
         )
 
     return result
@@ -101,7 +187,9 @@ def load_postgres_task():
 
 def validate_curated():
     """Execute curated data-quality checks."""
-    return validate_data_quality()
+    return (
+        validate_data_quality()
+    )
 
 
 def train_model_task():
@@ -115,27 +203,40 @@ def evaluate_model_task():
 
 
 def reproducibility_check():
-    """Require the expected-vs-actual metric comparison to pass."""
+    """Require expected-vs-actual metric comparison to pass."""
     metrics_path = (
         PROJECT_ROOT
         / "outputs"
         / "metrics.json"
     )
 
-    if not metrics_path.exists():
+    if not (
+        metrics_path.exists()
+    ):
         raise FileNotFoundError(
-            "outputs/metrics.json was not produced."
+            "outputs/metrics.json "
+            "was not produced."
         )
 
     with metrics_path.open(
         "r",
         encoding="utf-8",
     ) as file:
-        result = json.load(file)
+        result = (
+            json.load(
+                file
+            )
+        )
 
-    if result.get("status") != "PASS":
+    if (
+        result.get(
+            "status"
+        )
+        != "PASS"
+    ):
         raise ValueError(
-            "Model reproducibility comparison failed."
+            "Model reproducibility "
+            "comparison failed."
         )
 
     return {
@@ -149,20 +250,28 @@ def reproducibility_check():
 def publish_outputs():
     """Verify final deliverable artifacts exist."""
     required = [
-        PROJECT_ROOT
-        / "data"
-        / "curated"
-        / "stroke_model_ready.csv",
-        PROJECT_ROOT
-        / "outputs"
-        / "metrics.json",
-        PROJECT_ROOT
-        / "outputs"
-        / "predictions.csv",
+        (
+            PROJECT_ROOT
+            / "data"
+            / "curated"
+            / "stroke_model_ready.csv"
+        ),
+        (
+            PROJECT_ROOT
+            / "outputs"
+            / "metrics.json"
+        ),
+        (
+            PROJECT_ROOT
+            / "outputs"
+            / "predictions.csv"
+        ),
     ]
 
     missing = [
-        str(path)
+        str(
+            path
+        )
         for path in required
         if not path.exists()
     ]
@@ -170,20 +279,26 @@ def publish_outputs():
     if missing:
         raise FileNotFoundError(
             "Missing final outputs: "
-            + ", ".join(missing)
+            + ", ".join(
+                missing
+            )
         )
 
     return {
         "status": "PASS",
         "outputs": [
-            str(path)
+            str(
+                path
+            )
             for path in required
         ],
     }
 
 
 default_args = {
-    "owner": "sophia_abad",
+    "owner": (
+        "sophia_abad"
+    ),
     "depends_on_past": False,
     "retries": 1,
     "retry_delay": timedelta(
@@ -202,7 +317,10 @@ default_args = {
 
 
 with DAG(
-    dag_id="dss150p_predictive_repro_pipeline",
+    dag_id=(
+        "dss150p_predictive_"
+        "repro_pipeline"
+    ),
     description=(
         "Reproducible stroke predictive "
         "analytics pipeline for DSS150P Lab 4"
@@ -214,14 +332,24 @@ with DAG(
     ),
     schedule=None,
     catchup=False,
-    default_args=default_args,
+    default_args=(
+        default_args
+    ),
     max_active_runs=1,
     max_active_tasks=2,
     dagrun_timeout=timedelta(
         minutes=30
     ),
     params={
-        "run_mode": "full",
+        "run_mode": (
+            "full"
+        ),
+        "failure_scenario": (
+            "none"
+        ),
+        # Legacy parameter retained only so old documented
+        # commands do not break. When true, it now invokes
+        # a genuine invalid-row contract failure.
         "inject_failure": False,
     },
     on_success_callback=(
@@ -237,54 +365,114 @@ with DAG(
     ],
 ) as dag:
 
-    ingest_source_task = PythonOperator(
-        task_id="ingest_source",
-        python_callable=ingest_source,
+    ingest_source_task = (
+        PythonOperator(
+            task_id=(
+                "ingest_source"
+            ),
+            python_callable=(
+                ingest_source
+            ),
+        )
     )
 
-    validate_raw_task = PythonOperator(
-        task_id="validate_raw",
-        python_callable=validate_raw,
+    validate_raw_task = (
+        PythonOperator(
+            task_id=(
+                "validate_raw"
+            ),
+            python_callable=(
+                validate_raw
+            ),
+        )
     )
 
-    transform_staging_task = PythonOperator(
-        task_id="transform_staging",
-        python_callable=transform_staging,
+    transform_staging_task = (
+        PythonOperator(
+            task_id=(
+                "transform_staging"
+            ),
+            python_callable=(
+                transform_staging
+            ),
+        )
     )
 
-    build_curated_operator = PythonOperator(
-        task_id="build_curated",
-        python_callable=build_curated_task,
+    build_curated_operator = (
+        PythonOperator(
+            task_id=(
+                "build_curated"
+            ),
+            python_callable=(
+                build_curated_task
+            ),
+        )
     )
 
-    load_postgres_operator = PythonOperator(
-        task_id="load_postgres",
-        python_callable=load_postgres_task,
+    load_postgres_operator = (
+        PythonOperator(
+            task_id=(
+                "load_postgres"
+            ),
+            python_callable=(
+                load_postgres_task
+            ),
+        )
     )
 
-    validate_curated_task = PythonOperator(
-        task_id="validate_curated",
-        python_callable=validate_curated,
+    validate_curated_task = (
+        PythonOperator(
+            task_id=(
+                "validate_curated"
+            ),
+            python_callable=(
+                validate_curated
+            ),
+        )
     )
 
-    train_model_operator = PythonOperator(
-        task_id="train_model",
-        python_callable=train_model_task,
+    train_model_operator = (
+        PythonOperator(
+            task_id=(
+                "train_model"
+            ),
+            python_callable=(
+                train_model_task
+            ),
+        )
     )
 
-    evaluate_model_operator = PythonOperator(
-        task_id="evaluate_model",
-        python_callable=evaluate_model_task,
+    evaluate_model_operator = (
+        PythonOperator(
+            task_id=(
+                "evaluate_model"
+            ),
+            python_callable=(
+                evaluate_model_task
+            ),
+        )
     )
 
-    reproducibility_operator = PythonOperator(
-        task_id="reproducibility_check",
-        python_callable=reproducibility_check,
+    reproducibility_operator = (
+        PythonOperator(
+            task_id=(
+                "reproducibility_check"
+            ),
+            python_callable=(
+                reproducibility_check
+            ),
+        )
     )
 
-    publish_outputs_operator = PythonOperator(
-        task_id="publish_outputs",
-        python_callable=publish_outputs,
+    publish_outputs_operator = (
+        PythonOperator(
+            task_id=(
+                "publish_outputs"
+            ),
+            python_callable=(
+                publish_outputs
+            ),
+        )
     )
 
     (
