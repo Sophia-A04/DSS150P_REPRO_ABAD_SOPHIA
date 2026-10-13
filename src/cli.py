@@ -6,11 +6,13 @@ import argparse
 import json
 import sys
 
+from src.evaluate import evaluate_model
 from src.ingest import (
     ingest_full,
     ingest_incremental,
     verify_source_integrity,
 )
+from src.train import train_model
 from src.transform import (
     build_curated,
     build_staging,
@@ -49,6 +51,8 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser("transform-staging")
     subparsers.add_parser("transform-curated")
     subparsers.add_parser("transform-all")
+    subparsers.add_parser("train")
+    subparsers.add_parser("evaluate")
 
     return parser
 
@@ -79,11 +83,24 @@ def main() -> int:
         elif args.command == "transform-all":
             result = transform_all()
 
+        elif args.command == "train":
+            result = train_model()
+
+        elif args.command == "evaluate":
+            result = evaluate_model()
+
         else:
             parser.error("Unknown command.")
             return 2
 
-        print(json.dumps(result, indent=2, sort_keys=True))
+        print(
+            json.dumps(
+                result,
+                indent=2,
+                sort_keys=True,
+            )
+        )
+
         return 0
 
     except Exception as exc:
@@ -98,6 +115,7 @@ def main() -> int:
             ),
             file=sys.stderr,
         )
+
         return 1
 
 

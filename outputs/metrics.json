@@ -1,0 +1,41 @@
+{
+  "model": {
+    "accuracy": 0.6814701378254211,
+    "confusion_matrix": {
+      "false_negative": 21,
+      "false_positive": 187,
+      "true_negative": 417,
+      "true_positive": 28
+    },
+    "f1": 0.21212121212121213,
+    "model_name": "Baseline Logistic Regression",
+    "precision": 0.13023255813953488,
+    "recall": 0.5714285714285714,
+    "roc_auc": 0.6716448168671442,
+    "rows_evaluated": 653
+  },
+  "reproducibility_comparison": {
+    "accuracy": {
+      "absolute_difference": 2.9862174578898504e-05,
+      "actual": 0.6814701378254211,
+      "expected": 0.6815,
+      "pass": true,
+      "tolerance": 0.01
+    },
+    "recall": {
+      "absolute_difference": 2.8571428571377844e-05,
+      "actual": 0.5714285714285714,
+      "expected": 0.5714,
+      "pass": true,
+      "tolerance": 0.01
+    },
+    "roc_auc": {
+      "absolute_difference": 4.481686714419286e-05,
+      "actual": 0.6716448168671442,
+      "expected": 0.6716,
+      "pass": true,
+      "tolerance": 0.01
+    }
+  },
+  "status": "PASS"
+}
