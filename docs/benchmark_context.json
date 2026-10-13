@@ -1,0 +1,18 @@
+{
+  "benchmark_repeats": 5,
+  "expected_filtered_rows": 246,
+  "expected_rows": 3265,
+  "filter_workload": "stroke == 1",
+  "filtered_logical_hash": "233774545d2a6a25b7cd071f1ea452289274316fb1d47d2a7e9a54c443d5aac1",
+  "full_logical_hash": "ee5df2e0884ce360a85252cf9bf1bb5a062e24a3f4ffc631682ee358562b44a8",
+  "notes": [
+    "Write, full-read, and filtered-read/query operations were each repeated.",
+    "Median and standard deviation are reported to reduce dependence on one timing observation.",
+    "All storage representations were verified against canonical full-row and filtered-row hashes.",
+    "PostgreSQL write timing measures rerun-safe UPSERT plus transaction commit.",
+    "Performance results describe this machine and environment and are not universal rankings."
+  ],
+  "platform": "macOS-26.5.1-arm64-arm-64bit",
+  "python_version": "3.9.6",
+  "status": "PASS"
+}

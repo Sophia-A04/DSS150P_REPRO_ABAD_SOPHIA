@@ -6,6 +6,7 @@ import argparse
 import json
 import sys
 
+from src.benchmark import run_benchmark
 from src.evaluate import evaluate_model
 from src.ingest import (
     ingest_full,
@@ -44,8 +45,14 @@ def build_parser() -> argparse.ArgumentParser:
         required=True,
     )
 
-    subparsers.add_parser("verify-source")
-    subparsers.add_parser("ingest-full")
+    # Source and ingestion
+    subparsers.add_parser(
+        "verify-source"
+    )
+
+    subparsers.add_parser(
+        "ingest-full"
+    )
 
     incremental = subparsers.add_parser(
         "ingest-incremental"
@@ -62,18 +69,48 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
     )
 
-    subparsers.add_parser("transform-staging")
-    subparsers.add_parser("transform-curated")
-    subparsers.add_parser("transform-all")
+    # Transformation
+    subparsers.add_parser(
+        "transform-staging"
+    )
 
-    subparsers.add_parser("train")
-    subparsers.add_parser("evaluate")
+    subparsers.add_parser(
+        "transform-curated"
+    )
 
-    subparsers.add_parser("storage-export")
-    subparsers.add_parser("storage-verify")
-    subparsers.add_parser("create-partitions")
-    subparsers.add_parser("load-postgres")
-    subparsers.add_parser("storage-all")
+    subparsers.add_parser(
+        "transform-all"
+    )
+
+    # Modeling
+    subparsers.add_parser(
+        "train"
+    )
+
+    subparsers.add_parser(
+        "evaluate"
+    )
+
+    # Storage
+    subparsers.add_parser(
+        "storage-export"
+    )
+
+    subparsers.add_parser(
+        "storage-verify"
+    )
+
+    subparsers.add_parser(
+        "create-partitions"
+    )
+
+    subparsers.add_parser(
+        "load-postgres"
+    )
+
+    subparsers.add_parser(
+        "storage-all"
+    )
 
     partition_parser = subparsers.add_parser(
         "load-partition"
@@ -86,6 +123,7 @@ def build_parser() -> argparse.ArgumentParser:
         choices=[0, 1],
     )
 
+    # Validation
     subparsers.add_parser(
         "validate-data"
     )
@@ -96,6 +134,17 @@ def build_parser() -> argparse.ArgumentParser:
 
     subparsers.add_parser(
         "validate-all"
+    )
+
+    # Benchmark
+    benchmark_parser = subparsers.add_parser(
+        "benchmark"
+    )
+
+    benchmark_parser.add_argument(
+        "--repeats",
+        type=int,
+        default=5,
     )
 
     return parser
@@ -162,6 +211,11 @@ def main() -> int:
 
         elif args.command == "validate-all":
             result = validate_all()
+
+        elif args.command == "benchmark":
+            result = run_benchmark(
+                repeats=args.repeats
+            )
 
         else:
             parser.error(
