@@ -75,29 +75,32 @@ Raw Data-Contract Validation
         v
 Staging Contract Enforcement
         |
-        +---- invalid rows ---------> Quarantine
+        +---- invalid / excluded rows ----> Quarantine
         |
         v
 Curated Feature Engineering
         |
-        +-----------------------------+
-        |                             |
-        v                             v
-CSV / JSONL / Parquet            PostgreSQL
-        |                             |
-        +-------------+---------------+
-                      |
-                      v
-            Deterministic Model Input
-                      |
-                      v
-          Baseline Logistic Regression
-                      |
-                      v
-         Predictions + Metrics + Model
-                      |
-                      v
-           Reproducibility Comparison
+        v
+Canonical Curated Model-Ready CSV
+        |
+        +----> CSV / JSONL / Parquet Storage Representations
+        |
+        +----> PostgreSQL Curated Table
+        |
+        v
+Deterministic Train / Test Split
+        |
+        v
+Baseline Logistic Regression
+        |
+        v
+Model Artifact
+        |
+        v
+Predictions + Metrics
+        |
+        v
+Reproducibility Comparison
 ```
 
 Apache Airflow orchestrates the reusable Python modules instead of embedding transformation logic directly in the DAG.
