@@ -56,7 +56,9 @@ def append_jsonl(
         file.write("\n")
 
 
-def safe_duration(task_instance: Any) -> float | None:
+def safe_duration(
+    task_instance: Any,
+) -> float | None:
     """Return task duration when available."""
     duration = getattr(
         task_instance,
@@ -68,12 +70,20 @@ def safe_duration(task_instance: Any) -> float | None:
         return None
 
     try:
-        return float(duration)
-    except (TypeError, ValueError):
+        return float(
+            duration
+        )
+
+    except (
+        TypeError,
+        ValueError,
+    ):
         return None
 
 
-def task_success_callback(context: dict[str, Any]) -> None:
+def task_success_callback(
+    context: dict[str, Any],
+) -> None:
     """Persist a successful Airflow task record."""
     task_instance = context.get(
         "task_instance"
@@ -117,7 +127,9 @@ def task_success_callback(context: dict[str, Any]) -> None:
     )
 
 
-def task_failure_callback(context: dict[str, Any]) -> None:
+def task_failure_callback(
+    context: dict[str, Any],
+) -> None:
     """Persist a failed Airflow task record."""
     task_instance = context.get(
         "task_instance"
@@ -160,12 +172,16 @@ def task_failure_callback(context: dict[str, Any]) -> None:
                 task_instance
             ),
             "error_type": (
-                type(exception).__name__
+                type(
+                    exception
+                ).__name__
                 if exception
                 else None
             ),
             "error_message": (
-                str(exception)
+                str(
+                    exception
+                )
                 if exception
                 else None
             ),
@@ -174,7 +190,7 @@ def task_failure_callback(context: dict[str, Any]) -> None:
 
 
 def artifact_counts() -> dict[str, int | None]:
-    """Collect pipeline row counts for the run summary."""
+    """Collect row counts for a successful pipeline run."""
     source_path = (
         PROJECT_ROOT
         / "data"
@@ -208,7 +224,10 @@ def artifact_counts() -> dict[str, int | None]:
         / "split_manifest.json"
     )
 
-    counts: dict[str, int | None] = {
+    counts: dict[
+        str,
+        int | None,
+    ] = {
         "raw_rows": None,
         "staging_rows": None,
         "curated_rows": None,
@@ -218,23 +237,47 @@ def artifact_counts() -> dict[str, int | None]:
     }
 
     if source_path.exists():
-        counts["raw_rows"] = int(
-            len(pd.read_csv(source_path))
+        counts[
+            "raw_rows"
+        ] = int(
+            len(
+                pd.read_csv(
+                    source_path
+                )
+            )
         )
 
     if staging_path.exists():
-        counts["staging_rows"] = int(
-            len(pd.read_csv(staging_path))
+        counts[
+            "staging_rows"
+        ] = int(
+            len(
+                pd.read_csv(
+                    staging_path
+                )
+            )
         )
 
     if curated_path.exists():
-        counts["curated_rows"] = int(
-            len(pd.read_csv(curated_path))
+        counts[
+            "curated_rows"
+        ] = int(
+            len(
+                pd.read_csv(
+                    curated_path
+                )
+            )
         )
 
     if predictions_path.exists():
-        counts["prediction_rows"] = int(
-            len(pd.read_csv(predictions_path))
+        counts[
+            "prediction_rows"
+        ] = int(
+            len(
+                pd.read_csv(
+                    predictions_path
+                )
+            )
         )
 
     if split_path.exists():
@@ -242,16 +285,22 @@ def artifact_counts() -> dict[str, int | None]:
             "r",
             encoding="utf-8",
         ) as file:
-            split = json.load(file)
+            split = json.load(
+                file
+            )
 
-        counts["train_rows"] = int(
+        counts[
+            "train_rows"
+        ] = int(
             split.get(
                 "train_rows",
                 0,
             )
         )
 
-        counts["test_rows"] = int(
+        counts[
+            "test_rows"
+        ] = int(
             split.get(
                 "test_rows",
                 0,
@@ -259,6 +308,51 @@ def artifact_counts() -> dict[str, int | None]:
         )
 
     return counts
+
+
+def latest_failed_event(
+    pipeline_run_id: str,
+) -> dict[str, Any] | None:
+    """Return the latest failed task event for one DAG run."""
+    if not EVENT_LOG.exists():
+        return None
+
+    latest: dict[
+        str,
+        Any,
+    ] | None = None
+
+    with EVENT_LOG.open(
+        "r",
+        encoding="utf-8",
+    ) as file:
+        for line in file:
+            line = line.strip()
+
+            if not line:
+                continue
+
+            try:
+                record = json.loads(
+                    line
+                )
+
+            except json.JSONDecodeError:
+                continue
+
+            if (
+                record.get(
+                    "pipeline_run_id"
+                )
+                == pipeline_run_id
+                and record.get(
+                    "status"
+                )
+                == "FAILED"
+            ):
+                latest = record
+
+    return latest
 
 
 def write_run_record(
@@ -274,17 +368,67 @@ def write_run_record(
         "exception"
     )
 
+    pipeline_run_id = getattr(
+        dag_run,
+        "run_id",
+        "unknown",
+    )
+
     started_at = getattr(
         dag_run,
         "start_date",
         None,
     )
 
-    record = {
-        "pipeline_run_id": getattr(
-            dag_run,
-            "run_id",
-            "unknown",
+    run_conf = getattr(
+        dag_run,
+        "conf",
+        {},
+    )
+
+    failed_event = None
+
+    if status == "FAILED":
+        failed_event = (
+            latest_failed_event(
+                pipeline_run_id
+            )
+        )
+
+    if exception is not None:
+        error_type = (
+            type(
+                exception
+            ).__name__
+        )
+
+        error_message = str(
+            exception
+        )
+
+    elif failed_event is not None:
+        error_type = (
+            failed_event.get(
+                "error_type"
+            )
+        )
+
+        error_message = (
+            failed_event.get(
+                "error_message"
+            )
+        )
+
+    else:
+        error_type = None
+        error_message = None
+
+    record: dict[
+        str,
+        Any,
+    ] = {
+        "pipeline_run_id": (
+            pipeline_run_id
         ),
         "dag_id": getattr(
             dag_run,
@@ -298,21 +442,69 @@ def write_run_record(
         ),
         "ended_at_utc": utc_now(),
         "status": status,
+        "run_mode": (
+            run_conf.get(
+                "run_mode",
+                "full",
+            )
+            if isinstance(
+                run_conf,
+                dict,
+            )
+            else "full"
+        ),
+        "failure_scenario": (
+            run_conf.get(
+                "failure_scenario",
+                "none",
+            )
+            if isinstance(
+                run_conf,
+                dict,
+            )
+            else "none"
+        ),
         "error_type": (
-            type(exception).__name__
-            if exception
-            else None
+            error_type
         ),
         "error_message": (
-            str(exception)
-            if exception
+            error_message
+        ),
+        "failure_task_id": (
+            failed_event.get(
+                "task_id"
+            )
+            if failed_event
+            else None
+        ),
+        "failure_try_number": (
+            failed_event.get(
+                "try_number"
+            )
+            if failed_event
             else None
         ),
     }
 
-    record.update(
-        artifact_counts()
-    )
+    if status == "SUCCESS":
+        record.update(
+            artifact_counts()
+        )
+
+    else:
+        # A failed DAG may see files left by an older successful
+        # execution. Do not attribute those stale artifacts to
+        # the failed run.
+        record.update(
+            {
+                "raw_rows": None,
+                "staging_rows": None,
+                "curated_rows": None,
+                "train_rows": None,
+                "test_rows": None,
+                "prediction_rows": None,
+            }
+        )
 
     append_jsonl(
         RUN_LOG,

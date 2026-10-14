@@ -614,7 +614,7 @@ A real contract-driven Airflow failure was demonstrated using:
 Observed run:
 
 ```text
-lab4_contract_failure    FAILED
+lab4_contract_failure_final    FAILED
 ```
 
 The `validate_raw` task fails because the temporary demonstration dataset contains a genuine invalid contract value.
@@ -628,7 +628,7 @@ A subsequent canonical run uses:
 Observed run:
 
 ```text
-lab4_contract_recovery   SUCCESS
+lab4_contract_recovery_final   SUCCESS
 ```
 
 Structured task and DAG evidence is stored in:
@@ -894,8 +894,8 @@ The design would require controlled storage, encryption, least-privilege access,
 | Metric tolerance | expected vs actual PASS |
 | Automated tests | `8 passed` |
 | Airflow orchestration | valid 10-task DAG |
-| Real Airflow failure | `lab4_contract_failure` |
-| Airflow recovery | `lab4_contract_recovery` |
+| Real Airflow failure | `lab4_contract_failure_final` |
+| Airflow recovery | `lab4_contract_recovery_final` |
 | Structured run records | `pipeline_events.jsonl`, `pipeline_runs.jsonl` |
 | Fresh-clone reset | `reset-generated` |
 | Benchmark evidence | results CSV, context JSON, benchmark report |

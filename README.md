@@ -747,7 +747,7 @@ Trigger a genuine contract-driven failure:
 docker compose exec airflow \
 airflow dags trigger \
 dss150p_predictive_repro_pipeline \
---run-id lab4_contract_failure \
+--run-id lab4_contract_failure_final \
 --conf '{"failure_scenario":"invalid-binary"}'
 ```
 
@@ -758,7 +758,7 @@ The canonical repository data remains unchanged.
 Observed:
 
 ```text
-lab4_contract_failure    FAILED
+lab4_contract_failure_final    FAILED
 ```
 
 Trigger recovery using canonical data:
@@ -767,14 +767,14 @@ Trigger recovery using canonical data:
 docker compose exec airflow \
 airflow dags trigger \
 dss150p_predictive_repro_pipeline \
---run-id lab4_contract_recovery \
+--run-id lab4_contract_recovery_final \
 --conf '{"failure_scenario":"none"}'
 ```
 
 Observed:
 
 ```text
-lab4_contract_recovery   SUCCESS
+lab4_contract_recovery_final   SUCCESS
 ```
 
 Structured orchestration evidence:
