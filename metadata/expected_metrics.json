@@ -12,5 +12,14 @@
     "accuracy": 0.01,
     "recall": 0.01
   },
-  "notes": "Expected metrics are based on the original baseline Logistic Regression experiment. Small numerical differences across compatible library versions are accepted within the declared tolerance."
+  "expected_split": {
+    "strategy": "stratified_train_test_split",
+    "random_state": 42,
+    "test_size": 0.2,
+    "train_rows": 2612,
+    "test_rows": 653,
+    "train_id_sha256": "1780f7caef147f0f4fed0fa42dfd95ffd5648a95e277a66bd8a2cbfbb572d815",
+    "test_id_sha256": "d575f8d5e04958253f041e5cbb5d5a1d928bcc2595e0d74a2221ca2d853ccd63"
+  },
+  "notes": "Expected metrics are based on the original baseline Logistic Regression experiment. Small numerical differences across compatible library versions are accepted within the declared tolerance. The canonical train/test membership is frozen using SHA-256 hashes of the ordered patient ID lists."
 }

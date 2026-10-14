@@ -21,7 +21,10 @@ from src.config import (
     get_configured_path,
     load_settings,
 )
-from src.train import prepare_features
+from src.train import (
+    prepare_features,
+    sha256_text,
+)
 from src.validate import (
     validate_data_quality,
     validate_raw_layer,
@@ -48,6 +51,320 @@ def load_json(
         )
 
 
+def validate_split_manifest(
+    df: pd.DataFrame,
+    split_manifest: dict[str, Any],
+    expected_document: dict[str, Any],
+) -> dict[str, Any]:
+    """
+    Verify deterministic train/test membership.
+
+    The split must:
+    - contain the expected number of train and test IDs;
+    - contain no duplicates within either split;
+    - contain no train/test overlap;
+    - cover the complete curated dataset exactly; and
+    - match the frozen canonical split hashes.
+    """
+    if (
+        "expected_split"
+        not in expected_document
+    ):
+        raise ValueError(
+            "Expected split metadata is missing "
+            "from expected_metrics.json."
+        )
+
+    expected_split = (
+        expected_document[
+            "expected_split"
+        ]
+    )
+
+    train_ids = [
+        int(value)
+        for value in (
+            split_manifest[
+                "train_ids"
+            ]
+        )
+    ]
+
+    test_ids = [
+        int(value)
+        for value in (
+            split_manifest[
+                "test_ids"
+            ]
+        )
+    ]
+
+    train_set = set(
+        train_ids
+    )
+
+    test_set = set(
+        test_ids
+    )
+
+    curated_ids = set(
+        df[
+            "id"
+        ]
+        .astype(int)
+        .tolist()
+    )
+
+    if (
+        len(train_ids)
+        != len(train_set)
+    ):
+        raise ValueError(
+            "Duplicate IDs detected "
+            "inside the training split."
+        )
+
+    if (
+        len(test_ids)
+        != len(test_set)
+    ):
+        raise ValueError(
+            "Duplicate IDs detected "
+            "inside the test split."
+        )
+
+    overlap = (
+        train_set
+        & test_set
+    )
+
+    if overlap:
+        raise ValueError(
+            "Train/test leakage detected: "
+            f"{len(overlap)} ID(s) appear "
+            "in both splits."
+        )
+
+    if (
+        train_set
+        | test_set
+    ) != curated_ids:
+        raise ValueError(
+            "Train/test split does not exactly "
+            "cover the curated dataset."
+        )
+
+    train_rows = len(
+        train_ids
+    )
+
+    test_rows = len(
+        test_ids
+    )
+
+    if (
+        train_rows
+        != int(
+            split_manifest[
+                "train_rows"
+            ]
+        )
+    ):
+        raise ValueError(
+            "Training row count does not match "
+            "the split manifest."
+        )
+
+    if (
+        test_rows
+        != int(
+            split_manifest[
+                "test_rows"
+            ]
+        )
+    ):
+        raise ValueError(
+            "Test row count does not match "
+            "the split manifest."
+        )
+
+    if (
+        train_rows
+        != int(
+            expected_split[
+                "train_rows"
+            ]
+        )
+    ):
+        raise ValueError(
+            "Training split row count differs "
+            "from the frozen expected split."
+        )
+
+    if (
+        test_rows
+        != int(
+            expected_split[
+                "test_rows"
+            ]
+        )
+    ):
+        raise ValueError(
+            "Test split row count differs "
+            "from the frozen expected split."
+        )
+
+    train_id_text = ",".join(
+        map(
+            str,
+            train_ids,
+        )
+    )
+
+    test_id_text = ",".join(
+        map(
+            str,
+            test_ids,
+        )
+    )
+
+    calculated_train_hash = (
+        sha256_text(
+            train_id_text
+        )
+    )
+
+    calculated_test_hash = (
+        sha256_text(
+            test_id_text
+        )
+    )
+
+    manifest_train_hash = (
+        split_manifest[
+            "train_id_sha256"
+        ]
+    )
+
+    manifest_test_hash = (
+        split_manifest[
+            "test_id_sha256"
+        ]
+    )
+
+    expected_train_hash = (
+        expected_split[
+            "train_id_sha256"
+        ]
+    )
+
+    expected_test_hash = (
+        expected_split[
+            "test_id_sha256"
+        ]
+    )
+
+    if (
+        calculated_train_hash
+        != manifest_train_hash
+    ):
+        raise ValueError(
+            "Training ID hash does not match "
+            "the IDs stored in the split manifest."
+        )
+
+    if (
+        calculated_test_hash
+        != manifest_test_hash
+    ):
+        raise ValueError(
+            "Test ID hash does not match "
+            "the IDs stored in the split manifest."
+        )
+
+    if (
+        calculated_train_hash
+        != expected_train_hash
+    ):
+        raise ValueError(
+            "Training split differs from "
+            "the frozen canonical split."
+        )
+
+    if (
+        calculated_test_hash
+        != expected_test_hash
+    ):
+        raise ValueError(
+            "Test split differs from "
+            "the frozen canonical split."
+        )
+
+    if (
+        split_manifest.get(
+            "strategy"
+        )
+        != expected_split.get(
+            "strategy"
+        )
+    ):
+        raise ValueError(
+            "Split strategy differs from "
+            "the frozen expected configuration."
+        )
+
+    if (
+        int(
+            split_manifest.get(
+                "random_state"
+            )
+        )
+        != int(
+            expected_split[
+                "random_state"
+            ]
+        )
+    ):
+        raise ValueError(
+            "Split random_state differs from "
+            "the frozen expected configuration."
+        )
+
+    if (
+        float(
+            split_manifest.get(
+                "test_size"
+            )
+        )
+        != float(
+            expected_split[
+                "test_size"
+            ]
+        )
+    ):
+        raise ValueError(
+            "Split test_size differs from "
+            "the frozen expected configuration."
+        )
+
+    return {
+        "status": "PASS",
+        "train_rows": (
+            train_rows
+        ),
+        "test_rows": (
+            test_rows
+        ),
+        "overlap_rows": 0,
+        "train_id_sha256": (
+            calculated_train_hash
+        ),
+        "test_id_sha256": (
+            calculated_test_hash
+        ),
+    }
+
+
 def evaluate_model(
     settings: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
@@ -55,8 +372,8 @@ def evaluate_model(
     Evaluate the regenerated model and compare with historical metrics.
 
     Evaluation is blocked unless the current raw, staging, quarantine,
-    and curated layers all pass validation. This prevents stale model
-    outputs from being evaluated after an upstream pipeline failure.
+    and curated layers all pass validation. The persisted train/test
+    membership must also match the frozen canonical split.
     """
     settings = (
         settings
@@ -183,6 +500,14 @@ def evaluate_model(
     expected_document = (
         load_json(
             expected_path
+        )
+    )
+
+    split_validation = (
+        validate_split_manifest(
+            df,
+            split_manifest,
+            expected_document,
         )
     )
 
@@ -459,6 +784,9 @@ def evaluate_model(
         ),
         "model": (
             metrics
+        ),
+        "split_validation": (
+            split_validation
         ),
         "reproducibility_comparison": (
             comparisons
