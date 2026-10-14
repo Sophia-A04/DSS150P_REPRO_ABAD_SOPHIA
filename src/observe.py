@@ -355,6 +355,110 @@ def latest_failed_event(
     return latest
 
 
+def write_database_run_record(
+    record: dict[str, Any],
+) -> bool:
+    """
+    Best-effort persistence of one DAG run to PostgreSQL.
+
+    Observability must never cause the pipeline itself to fail,
+    so database audit errors are intentionally contained here.
+    """
+    try:
+        from src.storage import (
+            initialize_database,
+            postgres_connection,
+        )
+
+        initialize_database()
+
+        with postgres_connection() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    INSERT INTO audit.pipeline_runs (
+                        pipeline_run_id,
+                        started_at_utc,
+                        ended_at_utc,
+                        run_mode,
+                        status,
+                        raw_rows,
+                        staging_rows,
+                        curated_rows,
+                        error_type,
+                        error_message
+                    )
+                    VALUES (
+                        %s,
+                        %s,
+                        %s,
+                        %s,
+                        %s,
+                        %s,
+                        %s,
+                        %s,
+                        %s,
+                        %s
+                    )
+                    ON CONFLICT (pipeline_run_id)
+                    DO UPDATE SET
+                        started_at_utc = EXCLUDED.started_at_utc,
+                        ended_at_utc = EXCLUDED.ended_at_utc,
+                        run_mode = EXCLUDED.run_mode,
+                        status = EXCLUDED.status,
+                        raw_rows = EXCLUDED.raw_rows,
+                        staging_rows = EXCLUDED.staging_rows,
+                        curated_rows = EXCLUDED.curated_rows,
+                        error_type = EXCLUDED.error_type,
+                        error_message = EXCLUDED.error_message;
+                    """,
+                    (
+                        record[
+                            "pipeline_run_id"
+                        ],
+                        (
+                            record.get(
+                                "started_at_utc"
+                            )
+                            or utc_now()
+                        ),
+                        record.get(
+                            "ended_at_utc"
+                        ),
+                        record.get(
+                            "run_mode"
+                        ),
+                        record[
+                            "status"
+                        ],
+                        record.get(
+                            "raw_rows"
+                        ),
+                        record.get(
+                            "staging_rows"
+                        ),
+                        record.get(
+                            "curated_rows"
+                        ),
+                        record.get(
+                            "error_type"
+                        ),
+                        record.get(
+                            "error_message"
+                        ),
+                    ),
+                )
+
+            connection.commit()
+
+        return True
+
+    except Exception:
+        # Database audit logging is intentionally best-effort.
+        # A logging failure must not fail an otherwise valid DAG.
+        return False
+
+
 def write_run_record(
     context: dict[str, Any],
     status: str,
@@ -509,6 +613,10 @@ def write_run_record(
     append_jsonl(
         RUN_LOG,
         record,
+    )
+
+    write_database_run_record(
+        record
     )
 
 
