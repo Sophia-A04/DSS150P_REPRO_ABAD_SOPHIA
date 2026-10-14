@@ -19,6 +19,10 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
 from src.config import get_configured_path, load_settings
+from src.validate import (
+    validate_data_quality,
+    validate_raw_layer,
+)
 
 
 RANDOM_STATE = 42
@@ -39,23 +43,43 @@ BASELINE_FEATURES = [
 
 def sha256_text(value: str) -> str:
     """Return SHA-256 for a UTF-8 string."""
-    return hashlib.sha256(value.encode("utf-8")).hexdigest()
+    return hashlib.sha256(
+        value.encode("utf-8")
+    ).hexdigest()
 
 
 def prepare_features(
     df: pd.DataFrame,
 ) -> tuple[pd.DataFrame, pd.Series]:
     """Reproduce original baseline feature preparation."""
-    missing = set(BASELINE_FEATURES + [TARGET]).difference(df.columns)
+    missing = set(
+        BASELINE_FEATURES
+        + [TARGET]
+    ).difference(
+        df.columns
+    )
 
     if missing:
         raise ValueError(
             "Missing required model columns: "
-            + ", ".join(sorted(missing))
+            + ", ".join(
+                sorted(
+                    missing
+                )
+            )
         )
 
-    X = df[BASELINE_FEATURES].copy()
-    y = df[TARGET].astype(int).copy()
+    X = df[
+        BASELINE_FEATURES
+    ].copy()
+
+    y = (
+        df[
+            TARGET
+        ]
+        .astype(int)
+        .copy()
+    )
 
     # Exact encoding approach used in the original notebook.
     X_encoded = pd.get_dummies(
@@ -64,7 +88,10 @@ def prepare_features(
         dtype=int,
     )
 
-    return X_encoded, y
+    return (
+        X_encoded,
+        y,
+    )
 
 
 def create_split(
@@ -72,14 +99,19 @@ def create_split(
     y: pd.Series,
 ) -> tuple[pd.Index, pd.Index]:
     """Create the original deterministic stratified split."""
-    train_idx, test_idx = train_test_split(
-        df.index,
-        test_size=TEST_SIZE,
-        random_state=RANDOM_STATE,
-        stratify=y,
+    train_idx, test_idx = (
+        train_test_split(
+            df.index,
+            test_size=TEST_SIZE,
+            random_state=RANDOM_STATE,
+            stratify=y,
+        )
     )
 
-    return train_idx, test_idx
+    return (
+        train_idx,
+        test_idx,
+    )
 
 
 def write_split_manifest(
@@ -90,36 +122,89 @@ def write_split_manifest(
 ) -> dict[str, Any]:
     """Persist deterministic train/test membership."""
     train_ids = (
-        df.loc[train_idx, "id"]
+        df.loc[
+            train_idx,
+            "id",
+        ]
         .astype(int)
         .tolist()
     )
 
     test_ids = (
-        df.loc[test_idx, "id"]
+        df.loc[
+            test_idx,
+            "id",
+        ]
         .astype(int)
         .tolist()
     )
 
-    train_id_text = ",".join(map(str, train_ids))
-    test_id_text = ",".join(map(str, test_ids))
+    train_id_text = ",".join(
+        map(
+            str,
+            train_ids,
+        )
+    )
+
+    test_id_text = ",".join(
+        map(
+            str,
+            test_ids,
+        )
+    )
 
     payload = {
-        "strategy": "stratified_train_test_split",
-        "random_state": RANDOM_STATE,
-        "test_size": TEST_SIZE,
-        "train_rows": len(train_ids),
-        "test_rows": len(test_ids),
-        "train_id_sha256": sha256_text(train_id_text),
-        "test_id_sha256": sha256_text(test_id_text),
-        "train_ids": train_ids,
-        "test_ids": test_ids,
+        "strategy": (
+            "stratified_train_test_split"
+        ),
+        "random_state": (
+            RANDOM_STATE
+        ),
+        "test_size": (
+            TEST_SIZE
+        ),
+        "train_rows": (
+            len(
+                train_ids
+            )
+        ),
+        "test_rows": (
+            len(
+                test_ids
+            )
+        ),
+        "train_id_sha256": (
+            sha256_text(
+                train_id_text
+            )
+        ),
+        "test_id_sha256": (
+            sha256_text(
+                test_id_text
+            )
+        ),
+        "train_ids": (
+            train_ids
+        ),
+        "test_ids": (
+            test_ids
+        ),
     }
 
-    path.parent.mkdir(parents=True, exist_ok=True)
+    path.parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
 
-    with path.open("w", encoding="utf-8") as file:
-        json.dump(payload, file, indent=2)
+    with path.open(
+        "w",
+        encoding="utf-8",
+    ) as file:
+        json.dump(
+            payload,
+            file,
+            indent=2,
+        )
         file.write("\n")
 
     return payload
@@ -128,22 +213,63 @@ def write_split_manifest(
 def train_model(
     settings: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Train and persist the reproducible Logistic Regression model."""
-    settings = settings or load_settings()
+    """
+    Train and persist the reproducible Logistic Regression model.
 
-    curated_path = get_configured_path(
-        settings,
-        "curated_file",
+    Training is blocked unless the current raw, staging, quarantine,
+    and curated layers all pass validation. This prevents an older
+    curated artifact from being reused after an upstream failure.
+    """
+    settings = (
+        settings
+        or load_settings()
+    )
+
+    raw_validation = (
+        validate_raw_layer(
+            settings
+        )
+    )
+
+    if (
+        raw_validation[
+            "status"
+        ]
+        != "PASS"
+    ):
+        raise ValueError(
+            "Training blocked because "
+            "the current raw layer "
+            "does not pass validation."
+        )
+
+    validate_data_quality(
+        settings
+    )
+
+    curated_path = (
+        get_configured_path(
+            settings,
+            "curated_file",
+        )
     )
 
     split_manifest_path = (
-        Path(__file__).resolve().parents[1]
+        Path(
+            __file__
+        )
+        .resolve()
+        .parents[1]
         / "metadata"
         / "split_manifest.json"
     )
 
     model_path = (
-        Path(__file__).resolve().parents[1]
+        Path(
+            __file__
+        )
+        .resolve()
+        .parents[1]
         / "outputs"
         / "model"
         / "baseline_logistic_regression.joblib"
@@ -151,25 +277,48 @@ def train_model(
 
     if not curated_path.exists():
         raise FileNotFoundError(
-            "Curated dataset not found. Run transform-all first."
+            "Curated dataset not found. "
+            "Run transform-all first."
         )
 
-    df = pd.read_csv(curated_path)
+    df = pd.read_csv(
+        curated_path
+    )
 
     if len(df) != 3265:
         raise ValueError(
-            f"Expected 3265 curated records, found {len(df)}."
+            "Expected 3265 curated "
+            f"records, found {len(df)}."
         )
 
-    X, y = prepare_features(df)
+    X, y = (
+        prepare_features(
+            df
+        )
+    )
 
-    train_idx, test_idx = create_split(df, y)
+    train_idx, test_idx = (
+        create_split(
+            df,
+            y,
+        )
+    )
 
-    X_train = X.loc[train_idx]
-    X_test = X.loc[test_idx]
+    X_train = X.loc[
+        train_idx
+    ]
 
-    y_train = y.loc[train_idx]
-    y_test = y.loc[test_idx]
+    X_test = X.loc[
+        test_idx
+    ]
+
+    y_train = y.loc[
+        train_idx
+    ]
+
+    y_test = y.loc[
+        test_idx
+    ]
 
     pipeline = Pipeline(
         steps=[
@@ -180,15 +329,22 @@ def train_model(
             (
                 "model",
                 LogisticRegression(
-                    random_state=RANDOM_STATE,
-                    class_weight="balanced",
+                    random_state=(
+                        RANDOM_STATE
+                    ),
+                    class_weight=(
+                        "balanced"
+                    ),
                     max_iter=1000,
                 ),
             ),
         ]
     )
 
-    pipeline.fit(X_train, y_train)
+    pipeline.fit(
+        X_train,
+        y_train,
+    )
 
     model_path.parent.mkdir(
         parents=True,
@@ -196,13 +352,27 @@ def train_model(
     )
 
     artifact = {
-        "pipeline": pipeline,
-        "feature_columns": X.columns.tolist(),
-        "raw_features": BASELINE_FEATURES,
-        "target": TARGET,
-        "random_state": RANDOM_STATE,
-        "test_size": TEST_SIZE,
-        "model_name": "Baseline Logistic Regression",
+        "pipeline": (
+            pipeline
+        ),
+        "feature_columns": (
+            X.columns.tolist()
+        ),
+        "raw_features": (
+            BASELINE_FEATURES
+        ),
+        "target": (
+            TARGET
+        ),
+        "random_state": (
+            RANDOM_STATE
+        ),
+        "test_size": (
+            TEST_SIZE
+        ),
+        "model_name": (
+            "Baseline Logistic Regression"
+        ),
     }
 
     joblib.dump(
@@ -210,25 +380,67 @@ def train_model(
         model_path,
     )
 
-    split_manifest = write_split_manifest(
-        df=df,
-        train_idx=train_idx,
-        test_idx=test_idx,
-        path=split_manifest_path,
+    split_manifest = (
+        write_split_manifest(
+            df=df,
+            train_idx=train_idx,
+            test_idx=test_idx,
+            path=(
+                split_manifest_path
+            ),
+        )
     )
 
     return {
-        "status": "PASS",
-        "model": "Baseline Logistic Regression",
-        "curated_rows": len(df),
-        "encoded_features": len(X.columns),
-        "train_rows": len(X_train),
-        "test_rows": len(X_test),
-        "train_stroke_cases": int(y_train.sum()),
-        "test_stroke_cases": int(y_test.sum()),
-        "model_file": str(model_path),
-        "split_manifest": str(split_manifest_path),
-        "test_id_sha256": split_manifest[
-            "test_id_sha256"
-        ],
+        "status": (
+            "PASS"
+        ),
+        "model": (
+            "Baseline Logistic Regression"
+        ),
+        "curated_rows": (
+            len(
+                df
+            )
+        ),
+        "encoded_features": (
+            len(
+                X.columns
+            )
+        ),
+        "train_rows": (
+            len(
+                X_train
+            )
+        ),
+        "test_rows": (
+            len(
+                X_test
+            )
+        ),
+        "train_stroke_cases": (
+            int(
+                y_train.sum()
+            )
+        ),
+        "test_stroke_cases": (
+            int(
+                y_test.sum()
+            )
+        ),
+        "model_file": (
+            str(
+                model_path
+            )
+        ),
+        "split_manifest": (
+            str(
+                split_manifest_path
+            )
+        ),
+        "test_id_sha256": (
+            split_manifest[
+                "test_id_sha256"
+            ]
+        ),
     }

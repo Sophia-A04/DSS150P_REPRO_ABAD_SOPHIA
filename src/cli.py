@@ -14,7 +14,9 @@ from src.ingest import (
     ingest_incremental,
     verify_source_integrity,
 )
-from src.recovery_demo import run_interrupted_ingestion_demo
+from src.recovery_demo import (
+    run_interrupted_ingestion_demo,
+)
 from src.reset import reset_generated
 from src.storage import (
     create_partitions,
@@ -41,7 +43,9 @@ from src.validate import (
 def build_parser() -> argparse.ArgumentParser:
     """Build command-line interface."""
     parser = argparse.ArgumentParser(
-        description="DSS150P reproducible stroke pipeline"
+        description=(
+            "DSS150P reproducible stroke pipeline"
+        )
     )
 
     subparsers = parser.add_subparsers(
@@ -128,15 +132,20 @@ def build_parser() -> argparse.ArgumentParser:
         "storage-all"
     )
 
-    partition_parser = subparsers.add_parser(
-        "load-partition"
+    partition_parser = (
+        subparsers.add_parser(
+            "load-partition"
+        )
     )
 
     partition_parser.add_argument(
         "--age-score-risk",
         type=int,
         required=True,
-        choices=[0, 1],
+        choices=[
+            0,
+            1,
+        ],
     )
 
     # ------------------------------------------------------------------
@@ -163,8 +172,10 @@ def build_parser() -> argparse.ArgumentParser:
     # Controlled contract-failure demonstration
     # ------------------------------------------------------------------
 
-    failure_parser = subparsers.add_parser(
-        "demo-contract-failure"
+    failure_parser = (
+        subparsers.add_parser(
+            "demo-contract-failure"
+        )
     )
 
     failure_parser.add_argument(
@@ -180,13 +191,17 @@ def build_parser() -> argparse.ArgumentParser:
     # Interrupted-ingestion recovery demonstration
     # ------------------------------------------------------------------
 
-    recovery_parser = subparsers.add_parser(
-        "demo-interrupted-ingest"
+    recovery_parser = (
+        subparsers.add_parser(
+            "demo-interrupted-ingest"
+        )
     )
 
     recovery_parser.add_argument(
         "--output",
-        default="docs/interrupted_run_log.json",
+        default=(
+            "docs/interrupted_run_log.json"
+        ),
         help=(
             "Path where interrupted-run evidence "
             "will be written."
@@ -197,8 +212,10 @@ def build_parser() -> argparse.ArgumentParser:
     # Generated-state reset
     # ------------------------------------------------------------------
 
-    reset_parser = subparsers.add_parser(
-        "reset-generated"
+    reset_parser = (
+        subparsers.add_parser(
+            "reset-generated"
+        )
     )
 
     reset_parser.add_argument(
@@ -223,8 +240,10 @@ def build_parser() -> argparse.ArgumentParser:
     # Benchmark
     # ------------------------------------------------------------------
 
-    benchmark_parser = subparsers.add_parser(
-        "benchmark"
+    benchmark_parser = (
+        subparsers.add_parser(
+            "benchmark"
+        )
     )
 
     benchmark_parser.add_argument(
@@ -242,90 +261,218 @@ def main() -> int:
     args = parser.parse_args()
 
     try:
-        if args.command == "verify-source":
-            result = verify_source_integrity()
-
-        elif args.command == "ingest-full":
-            result = ingest_full()
-
-        elif args.command == "ingest-incremental":
-            result = ingest_incremental(
-                max_batches=args.max_batches,
-                ingest_all=args.all,
+        if (
+            args.command
+            == "verify-source"
+        ):
+            result = (
+                verify_source_integrity()
             )
 
-        elif args.command == "transform-staging":
-            result = build_staging()
-
-        elif args.command == "transform-curated":
-            result = build_curated()
-
-        elif args.command == "transform-all":
-            result = transform_all()
-
-        elif args.command == "train":
-            result = train_model()
-
-        elif args.command == "evaluate":
-            result = evaluate_model()
-
-        elif args.command == "storage-export":
-            result = export_storage_formats()
-
-        elif args.command == "storage-verify":
-            result = verify_storage_equivalence()
-
-        elif args.command == "create-partitions":
-            result = create_partitions()
-
-        elif args.command == "load-postgres":
-            result = load_postgres()
-
-        elif args.command == "load-partition":
-            result = load_partition(
-                age_score_risk=args.age_score_risk
+        elif (
+            args.command
+            == "ingest-full"
+        ):
+            result = (
+                ingest_full()
             )
 
-        elif args.command == "storage-all":
-            result = storage_all()
-
-        elif args.command == "validate-raw":
-            result = validate_raw_layer()
-
-        elif args.command == "validate-data":
-            result = validate_data_quality()
-
-        elif args.command == "validate-database":
-            result = validate_database()
-
-        elif args.command == "validate-all":
-            result = validate_all()
-
-        elif args.command == "demo-contract-failure":
-            result = run_contract_failure_demo(
-                scenario=args.scenario
+        elif (
+            args.command
+            == "ingest-incremental"
+        ):
+            result = (
+                ingest_incremental(
+                    max_batches=(
+                        args.max_batches
+                    ),
+                    ingest_all=(
+                        args.all
+                    ),
+                )
             )
 
-        elif args.command == "demo-interrupted-ingest":
-            result = run_interrupted_ingestion_demo(
-                output_path=args.output
+        elif (
+            args.command
+            == "transform-staging"
+        ):
+            result = (
+                build_staging()
             )
 
-        elif args.command == "reset-generated":
-            result = reset_generated(
-                reset_database=args.database,
-                dry_run=args.dry_run,
+        elif (
+            args.command
+            == "transform-curated"
+        ):
+            result = (
+                build_curated()
             )
 
-        elif args.command == "benchmark":
-            result = run_benchmark(
-                repeats=args.repeats
+        elif (
+            args.command
+            == "transform-all"
+        ):
+            result = (
+                transform_all()
+            )
+
+        elif (
+            args.command
+            == "train"
+        ):
+            result = (
+                train_model()
+            )
+
+        elif (
+            args.command
+            == "evaluate"
+        ):
+            result = (
+                evaluate_model()
+            )
+
+        elif (
+            args.command
+            == "storage-export"
+        ):
+            result = (
+                export_storage_formats()
+            )
+
+        elif (
+            args.command
+            == "storage-verify"
+        ):
+            result = (
+                verify_storage_equivalence()
+            )
+
+        elif (
+            args.command
+            == "create-partitions"
+        ):
+            result = (
+                create_partitions()
+            )
+
+        elif (
+            args.command
+            == "load-postgres"
+        ):
+            result = (
+                load_postgres()
+            )
+
+        elif (
+            args.command
+            == "load-partition"
+        ):
+            result = (
+                load_partition(
+                    age_score_risk=(
+                        args.age_score_risk
+                    )
+                )
+            )
+
+        elif (
+            args.command
+            == "storage-all"
+        ):
+            result = (
+                storage_all()
+            )
+
+        elif (
+            args.command
+            == "validate-raw"
+        ):
+            result = (
+                validate_raw_layer()
+            )
+
+        elif (
+            args.command
+            == "validate-data"
+        ):
+            result = (
+                validate_data_quality()
+            )
+
+        elif (
+            args.command
+            == "validate-database"
+        ):
+            result = (
+                validate_database()
+            )
+
+        elif (
+            args.command
+            == "validate-all"
+        ):
+            result = (
+                validate_all()
+            )
+
+        elif (
+            args.command
+            == "demo-contract-failure"
+        ):
+            result = (
+                run_contract_failure_demo(
+                    scenario=(
+                        args.scenario
+                    )
+                )
+            )
+
+        elif (
+            args.command
+            == "demo-interrupted-ingest"
+        ):
+            result = (
+                run_interrupted_ingestion_demo(
+                    output_path=(
+                        args.output
+                    )
+                )
+            )
+
+        elif (
+            args.command
+            == "reset-generated"
+        ):
+            result = (
+                reset_generated(
+                    reset_database=(
+                        args.database
+                    ),
+                    dry_run=(
+                        args.dry_run
+                    ),
+                )
+            )
+
+        elif (
+            args.command
+            == "benchmark"
+        ):
+            result = (
+                run_benchmark(
+                    repeats=(
+                        args.repeats
+                    )
+                )
             )
 
         else:
             parser.error(
-                f"Unknown command: {args.command}"
+                "Unknown command: "
+                f"{args.command}"
             )
+
             return 2
 
         print(
@@ -336,15 +483,42 @@ def main() -> int:
             )
         )
 
+        # Reproducibility evaluation is an acceptance check.
+        # A returned FAIL must also produce a nonzero shell exit code
+        # so CI, Airflow, and other automation can detect the failure.
+        if (
+            args.command
+            == "evaluate"
+            and isinstance(
+                result,
+                dict,
+            )
+            and result.get(
+                "status"
+            )
+            != "PASS"
+        ):
+            return 1
+
         return 0
 
     except Exception as exc:
         print(
             json.dumps(
                 {
-                    "status": "FAILED",
-                    "error_type": type(exc).__name__,
-                    "message": str(exc),
+                    "status": (
+                        "FAILED"
+                    ),
+                    "error_type": (
+                        type(
+                            exc
+                        ).__name__
+                    ),
+                    "message": (
+                        str(
+                            exc
+                        )
+                    ),
                 },
                 indent=2,
             ),
